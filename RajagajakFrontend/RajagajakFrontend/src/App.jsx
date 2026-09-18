@@ -3,7 +3,9 @@ import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
-import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import ProductDetails from "./pages/ProductDetails.jsx";
+import Profile from "./pages/Profile.jsx";
+import ProtectedRoute, { AdminRoute } from "./components/ProtectedRoute.jsx";
 import "./App.css";
 
 function App() {
@@ -14,7 +16,11 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/products/:id" element={<ProductDetails />} />
+        </Route>
+        <Route element={<AdminRoute />}>
+          <Route path="/admin/*" element={<AdminDashboard />} />
         </Route>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

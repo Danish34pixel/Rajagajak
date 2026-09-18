@@ -40,6 +40,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["user", "admin"],
       default: "user",
+      set: (value) => String(value).toLowerCase(),
     },
   },
   { timestamps: true },
@@ -54,6 +55,7 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     address: this.address,
     pinCode: this.pinCode,
     role: this.role || "user",
+    createdAt: this.createdAt,
   };
 };
 

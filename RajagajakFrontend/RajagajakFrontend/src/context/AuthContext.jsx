@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import * as api from "../services/api.js";
 import { AuthContext } from "./auth-context.js";
 const TOKEN_KEY = "rajagajak_token";
@@ -35,11 +35,15 @@ export function AuthProvider({ children }) {
     return nextUser;
   };
   const signUp = (userData) => api.signup(userData);
-  const signOut = () => {
+  const signOut = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setSession({ token: null, user: null });
-  };
+  }, []);
+  const updateUser = useCallback((nextUser) => {
+    localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    setSession((current) => ({ ...current, user: nextUser }));
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -50,6 +54,7 @@ export function AuthProvider({ children }) {
         signIn,
         signUp,
         signOut,
+        updateUser,
       }}
     >
       {children}

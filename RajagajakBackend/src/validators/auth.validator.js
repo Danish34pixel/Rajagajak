@@ -30,4 +30,22 @@ const validateSignup = ({
   return errors;
 };
 
-module.exports = { validateSignup };
+const validateProfileUpdate = ({ name, mobile, email, address, pinCode }) => {
+  const errors = [];
+
+  if (!name?.trim()) errors.push("Name is required.");
+  if (!mobile || !mobilePattern.test(String(mobile).trim())) {
+    errors.push("Mobile must be a valid Indian 10-digit number.");
+  }
+  if (!email || !emailPattern.test(String(email).trim())) {
+    errors.push("A valid email is required.");
+  }
+  if (!address?.trim()) errors.push("Address is required.");
+  if (!pinCode || !pinCodePattern.test(String(pinCode).trim())) {
+    errors.push("PIN code must be exactly 6 digits.");
+  }
+
+  return errors;
+};
+
+module.exports = { validateProfileUpdate, validateSignup };

@@ -6,11 +6,17 @@ const imageKit = new ImageKit({ privateKey: env.imageKitPrivateKey });
 
 const uploadImage = async ({ buffer, originalName, mimeType, size }) => {
   const file = await toFile(buffer, originalName);
-  const uploadedFile = await imageKit.beta.v2.files.upload({
+  const uploadedFile = await imageKit.files.upload({
     file,
     fileName: originalName,
     folder: "/rajagajak",
   });
+
+  if (!uploadedFile?.url || !uploadedFile?.fileId) {
+    const error = new Error("ImageKit returned an incomplete upload response.");
+    error.statusCode = 502;
+    throw error;
+  }
 
   return Image.create({
     url: uploadedFile.url,

@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Eye, EyeOff, ArrowRight, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth.js";
 import Loader from "../components/Loader.jsx";
+import "../auth-liquid.css";
 
 const initialForm = {
   name: "",
@@ -63,12 +64,18 @@ export default function Signup() {
   };
   return (
     <main className="auth-page signup-page">
+      <div className="liquid-blobs" aria-hidden="true">
+        <span className="blob blob--one" />
+        <span className="blob blob--two" />
+        <span className="blob blob--three" />
+      </div>
       <section className="auth-intro">
         <div className="brand brand-light">
-          <span className="brand-mark">
-            <ShieldCheck size={18} />
-          </span>
-          Rajagajak
+          <img
+            className="brand-logo"
+            src="/rajagajak-logo.svg"
+            alt="Raja Gajak"
+          />
         </div>
         <div className="intro-copy">
           <span className="eyebrow">Join the community</span>
@@ -78,8 +85,14 @@ export default function Signup() {
         <span className="intro-footer">Your account stays yours.</span>
       </section>
       <section className="auth-panel">
-        <div className="auth-card signup-card">
-          <div className="mobile-brand">Rajagajak</div>
+        <div className="auth-card signup-card auth-card--liquid">
+          <div className="mobile-brand">
+            <img
+              className="brand-logo"
+              src="/rajagajak-logo.svg"
+              alt="Raja Gajak"
+            />
+          </div>
           <span className="eyebrow">Create account</span>
           <h2>Start with the basics</h2>
           <p className="section-subtitle">
@@ -92,7 +105,10 @@ export default function Signup() {
               </div>
             )}
             <div className="form-grid">
-              <label>
+              <label
+                className="field field--stagger"
+                style={{ "--delay": "0ms" }}
+              >
                 Full name
                 <input
                   value={form.name}
@@ -101,7 +117,10 @@ export default function Signup() {
                   autoComplete="name"
                 />
               </label>
-              <label>
+              <label
+                className="field field--stagger"
+                style={{ "--delay": "50ms" }}
+              >
                 Mobile number
                 <input
                   value={form.mobile}
@@ -111,7 +130,10 @@ export default function Signup() {
                   autoComplete="tel"
                 />
               </label>
-              <label>
+              <label
+                className="field field--stagger"
+                style={{ "--delay": "100ms" }}
+              >
                 Email address
                 <input
                   type="email"
@@ -121,7 +143,10 @@ export default function Signup() {
                   autoComplete="email"
                 />
               </label>
-              <label>
+              <label
+                className="field field--stagger"
+                style={{ "--delay": "150ms" }}
+              >
                 PIN code
                 <input
                   value={form.pinCode}
@@ -131,7 +156,10 @@ export default function Signup() {
                 />
               </label>
             </div>
-            <label>
+            <label
+              className="field field--stagger"
+              style={{ "--delay": "200ms" }}
+            >
               Address
               <textarea
                 value={form.address}
@@ -157,19 +185,26 @@ export default function Signup() {
               />
             </div>
             <button
-              className="primary-button"
+              className="primary-button primary-button--liquid"
               type="submit"
               disabled={submitting}
+              style={{ "--delay": "300ms" }}
             >
-              {submitting ? (
-                <Loader label="Creating account" />
-              ) : (
-                <>
-                  Create account <ArrowRight size={18} />
-                </>
-              )}
+              <span className="primary-button__fill" aria-hidden="true" />
+              <span className="primary-button__content">
+                {submitting ? (
+                  <Loader label="Creating account" />
+                ) : (
+                  <>
+                    Create account <ArrowRight size={18} />
+                  </>
+                )}
+              </span>
             </button>
-            <p className="form-foot">
+            <p
+              className="form-foot field--stagger"
+              style={{ "--delay": "360ms" }}
+            >
               Already have an account? <Link to="/login">Sign in</Link>
             </p>
           </form>
