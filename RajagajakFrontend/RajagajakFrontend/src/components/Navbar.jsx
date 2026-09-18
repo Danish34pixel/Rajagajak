@@ -1,19 +1,23 @@
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, UserRound } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth.js";
 
 export default function Navbar({ admin = false }) {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   return (
     <header className="navbar">
       <a className="brand" href={admin ? "/admin" : "/dashboard"}>
-        <span className="brand-mark">
-          <ShieldCheck size={18} />
-        </span>
-        Rajagajak
+        <img
+          className="brand-logo"
+          src="/rajagajak-logo.svg"
+          alt="Raja Gajak"
+        />
       </a>
       <div className="nav-user">
-        <span className="nav-name">{user?.name}</span>
-        <span className="role-badge">{admin ? "Administrator" : "Member"}</span>
+        <Link className="profile-link" to="/profile">
+          <UserRound size={16} />
+          Profile
+        </Link>
         <button
           className="icon-button"
           type="button"

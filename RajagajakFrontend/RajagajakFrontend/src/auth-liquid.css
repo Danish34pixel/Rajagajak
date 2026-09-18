@@ -1,0 +1,271 @@
+/* Liquid glass auth layer. Palette variables are generated from theme/colors.js. */
+.liquid-blobs {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+  filter: blur(60px);
+  opacity: 0.55;
+  will-change: transform, border-radius;
+  animation: blob-morph 18s ease-in-out infinite;
+}
+
+.blob--one {
+  width: 46vw;
+  height: 46vw;
+  max-width: 620px;
+  max-height: 620px;
+  top: -12%;
+  left: -10%;
+  background: radial-gradient(
+    circle at 30% 30%,
+    var(--color-primary),
+    transparent 70%
+  );
+  animation-duration: 22s;
+}
+
+.blob--two {
+  width: 34vw;
+  height: 34vw;
+  max-width: 480px;
+  max-height: 480px;
+  right: -8%;
+  bottom: -14%;
+  background: radial-gradient(
+    circle at 60% 40%,
+    var(--color-accent),
+    transparent 70%
+  );
+  animation-duration: 26s;
+  animation-delay: -6s;
+}
+
+.blob--three {
+  width: 24vw;
+  height: 24vw;
+  max-width: 340px;
+  max-height: 340px;
+  bottom: 10%;
+  left: 18%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    var(--color-primary-dark),
+    transparent 75%
+  );
+  opacity: 0.35;
+  animation-duration: 20s;
+  animation-delay: -11s;
+}
+
+@keyframes blob-morph {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+  }
+  33% {
+    transform: translate(4%, 6%) scale(1.08);
+    border-radius: 58% 42% 39% 61% / 55% 61% 39% 45%;
+  }
+  66% {
+    transform: translate(-3%, 3%) scale(0.96);
+    border-radius: 48% 52% 57% 43% / 35% 48% 52% 65%;
+  }
+}
+
+.auth-panel {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-card--liquid {
+  position: relative;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-background) 72%, transparent),
+    color-mix(in srgb, var(--color-background) 42%, transparent)
+  );
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid color-mix(in srgb, var(--color-white) 50%, transparent);
+  border-radius: 28px;
+  box-shadow:
+    0 1px 1px color-mix(in srgb, var(--color-white) 60%, transparent) inset,
+    0 -18px 40px color-mix(in srgb, var(--color-primary) 5%, transparent) inset,
+    0 24px 60px -20px color-mix(in srgb, var(--color-text) 35%, transparent);
+  overflow: hidden;
+  animation: card-rise 720ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-card--liquid::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(
+    115deg,
+    transparent 40%,
+    color-mix(in srgb, var(--color-white) 35%, transparent) 50%,
+    transparent 60%
+  );
+  transform: translateX(-30%);
+  animation: sheen-sweep 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.auth-card--liquid > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes sheen-sweep {
+  0%,
+  100% {
+    transform: translateX(-30%) translateY(-10%);
+  }
+  50% {
+    transform: translateX(10%) translateY(6%);
+  }
+}
+
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(28px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.field--stagger,
+.primary-button--liquid {
+  animation: field-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes field-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.input-wrap input {
+  background: color-mix(in srgb, var(--color-white) 55%, transparent);
+  border: 1px solid
+    color-mix(in srgb, var(--color-text-secondary) 18%, transparent);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.input-wrap input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-white) 85%, transparent);
+  box-shadow: 0 0 0 4px
+    color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.input-icon {
+  color: var(--color-text-secondary);
+}
+
+.primary-button--liquid {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--color-primary);
+  color: var(--color-background);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.primary-button__fill {
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary-dark);
+  transform: translateY(100%);
+  border-radius: 60% 60% 0 0 / 30% 30% 0 0;
+  transition: transform 320ms cubic-bezier(0.65, 0, 0.35, 1);
+  z-index: -1;
+}
+
+.primary-button--liquid:hover .primary-button__fill,
+.primary-button--liquid:focus-visible .primary-button__fill {
+  transform: translateY(0);
+  border-radius: 0;
+}
+.primary-button--liquid:active {
+  transform: scale(0.98);
+}
+.primary-button__content {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.alert--enter {
+  animation: alert-in 260ms ease both;
+}
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.auth-form--shake {
+  animation: form-shake 420ms ease;
+}
+@keyframes form-shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .auth-card--liquid,
+  .auth-card--liquid::before,
+  .field--stagger,
+  .primary-button--liquid,
+  .alert--enter,
+  .auth-form--shake {
+    animation: none !important;
+  }
+  .primary-button__fill {
+    transition: none;
+  }
+}

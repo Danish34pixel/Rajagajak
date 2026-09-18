@@ -21,7 +21,12 @@ export class ApiError extends Error {
 
 const request = async (path, options = {}) => {
   const token = localStorage.getItem("rajagajak_token");
-  const headers = { "Content-Type": "application/json", ...options.headers };
+  const headers = {
+    ...(options.body instanceof FormData
+      ? {}
+      : { "Content-Type": "application/json" }),
+    ...options.headers,
+  };
   if (token) headers.Authorization = `Bearer ${token}`;
 
   try {
@@ -39,7 +44,8 @@ const request = async (path, options = {}) => {
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError(
-      "Unable to reach the server. Check your connection and try again.",
+      error?.message ||
+        "Unable to reach the server. Check your connection and try again.",
     );
   }
 };
@@ -51,8 +57,48 @@ export const signup = (userData) =>
   });
 export const login = (credentials) =>
   request("/auth/login", { method: "POST", body: JSON.stringify(credentials) });
+export const profile = () => request("/auth/profile");
+export const updateProfile = (user) =>
+  request("/auth/profile", {
+    method: "PATCH",
+    body: JSON.stringify(user),
+  });
 export const getCurrentUser = () => {
   const user = localStorage.getItem("rajagajak_user");
   return user ? JSON.parse(user) : null;
 };
 export const logout = () => {};
+
+export const adminProducts = () => request("/admin/products");
+export const createProduct = (product) =>
+  request("/admin/products", { method: "POST", body: JSON.stringify(product) });
+export const updateProduct = (id, product) =>
+  request(`/admin/products/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(product),
+  });
+export const deleteProduct = (id) =>
+  request(`/admin/products/${id}`, { method: "DELETE" });
+export const adminCoupons = () => request("/admin/coupons");
+export const createCoupon = (coupon) =>
+  request("/admin/coupons", { method: "POST", body: JSON.stringify(coupon) });
+export const updateCoupon = (id, coupon) =>
+  request(`/admin/coupons/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(coupon),
+  });
+export const deleteCoupon = (id) =>
+  request(`/admin/coupons/${id}`, { method: "DELETE" });
+export const uploadAdminImages = (files) => {
+  const form = new FormData();
+  files.forEach((file) => form.append("images", file));
+  return request("/images", { method: "POST", body: form });
+};
+export const activeCoupons = () => request("/coupons/active");
+export const applyCoupon = (code, subtotal) =>
+  request("/coupons/apply", {
+    method: "POST",
+    body: JSON.stringify({ code, subtotal }),
+  });
+export const products = () => request("/products");
+export const product = (id) => request(`/products/${id}`);

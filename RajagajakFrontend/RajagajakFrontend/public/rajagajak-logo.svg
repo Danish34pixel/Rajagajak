@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 220" role="img" aria-labelledby="title">
+  <title id="title">Raja Gajak</title>
+  <ellipse cx="260" cy="110" rx="248" ry="96" fill="#f8bd42"/>
+  <ellipse cx="260" cy="110" rx="232" ry="82" fill="#f52f35" stroke="#ffe28a" stroke-width="4"/>
+  <g fill="#fff1bd" font-family="Georgia, serif" font-style="italic" font-weight="700" text-anchor="middle">
+    <text x="260" y="98" font-size="76">Raja</text>
+    <text x="310" y="168" font-size="72">Gajak</text>
+  </g>
+  <circle cx="385" cy="56" r="14" fill="none" stroke="#fff1bd" stroke-width="3"/>
+  <text x="385" y="62" fill="#fff1bd" font-family="Georgia, serif" font-size="17" font-weight="700" text-anchor="middle">R</text>
+  <text x="90" y="143" fill="#2b2320" font-family="Arial, sans-serif" font-size="10" letter-spacing="2">ISO 9001 · CERTIFIED</text>
+</svg>

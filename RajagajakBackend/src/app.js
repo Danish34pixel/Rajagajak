@@ -10,7 +10,18 @@ const errorHandler = require("./middleware/error.middleware");
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: env.frontendUrl }));
+app.use(
+  cors({
+    origin: (requestOrigin, callback) => {
+      if (!requestOrigin || env.frontendUrls.includes(requestOrigin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Origin is not allowed by CORS"));
+    },
+    credentials: false,
+  }),
+);
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));

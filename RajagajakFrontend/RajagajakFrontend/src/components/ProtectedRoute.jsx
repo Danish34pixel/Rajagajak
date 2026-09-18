@@ -12,7 +12,19 @@ export default function ProtectedRoute() {
       </div>
     );
   if (!user) return <Navigate to="/login" replace state={{ from: location }} />;
-  if (location.pathname === "/admin" && user.role !== "admin")
+  return <Outlet />;
+}
+
+export function AdminRoute() {
+  const { user, loading } = useAuth();
+  if (loading)
+    return (
+      <div className="page-loader">
+        <Loader label="Checking admin access" />
+      </div>
+    );
+  if (!user) return <Navigate to="/login" replace />;
+  if (String(user.role).toLowerCase() !== "admin")
     return <Navigate to="/dashboard" replace />;
   return <Outlet />;
 }

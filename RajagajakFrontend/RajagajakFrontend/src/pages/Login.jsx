@@ -1,14 +1,11 @@
 import { useState } from "react";
-import {
-  Eye,
-  EyeOff,
-  LockKeyhole,
-  ArrowRight,
-  ShieldCheck,
-} from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, ArrowRight } from "lucide-react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth.js";
 import Loader from "../components/Loader.jsx";
+import "../auth-liquid.css";
+
+const isAdmin = (user) => String(user?.role).toLowerCase() === "admin";
 
 export default function Login() {
   const { user, signIn } = useAuth();
@@ -17,27 +14,33 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [shake, setShake] = useState(false);
 
   if (user)
-    return (
-      <Navigate to={user.role === "admin" ? "/admin" : "/dashboard"} replace />
-    );
+    return <Navigate to={isAdmin(user) ? "/admin" : "/dashboard"} replace />;
+
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 420);
+  };
 
   const submit = async (event) => {
     event.preventDefault();
     setError("");
     if (!form.email || !form.password) {
       setError("Enter your email and password to continue.");
+      triggerShake();
       return;
     }
     setSubmitting(true);
     try {
       const loggedInUser = await signIn(form);
-      navigate(loggedInUser.role === "admin" ? "/admin" : "/dashboard", {
+      navigate(isAdmin(loggedInUser) ? "/admin" : "/dashboard", {
         replace: true,
       });
     } catch (requestError) {
       setError(requestError.message);
+      triggerShake();
     } finally {
       setSubmitting(false);
     }
@@ -47,28 +50,36 @@ export default function Login() {
     <AuthLayout
       eyebrow="Member access"
       title="Welcome back"
-      subtitle="Sign in to continue to your Rajagajak account."
+      subtitle="Sign in to continue to your Raja Gajak account."
     >
-      <form className="auth-form" onSubmit={submit} noValidate>
+      <form
+        className={`auth-form${shake ? " auth-form--shake" : ""}`}
+        onSubmit={submit}
+        noValidate
+      >
         {error && (
-          <div className="alert" role="alert">
+          <div className="alert alert--enter" role="alert">
             {error}
           </div>
         )}
-        <label>
+
+        <label className="field field--stagger" style={{ "--delay": "0ms" }}>
           Email address
-          <input
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            placeholder="you@example.com"
-            autoComplete="email"
-          />
+          <div className="input-wrap">
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="you@example.com"
+              autoComplete="email"
+            />
+          </div>
         </label>
-        <label>
+
+        <label className="field field--stagger" style={{ "--delay": "70ms" }}>
           Password
           <div className="input-wrap">
-            <LockKeyhole size={18} />
+            <LockKeyhole size={18} className="input-icon" />
             <input
               type={showPassword ? "text" : "password"}
               value={form.password}
@@ -86,17 +97,27 @@ export default function Login() {
             </button>
           </div>
         </label>
-        <button className="primary-button" type="submit" disabled={submitting}>
-          {submitting ? (
-            <Loader label="Signing in" />
-          ) : (
-            <>
-              Sign in <ArrowRight size={18} />
-            </>
-          )}
+
+        <button
+          className="primary-button primary-button--liquid"
+          type="submit"
+          disabled={submitting}
+          style={{ "--delay": "140ms" }}
+        >
+          <span className="primary-button__fill" aria-hidden="true" />
+          <span className="primary-button__content">
+            {submitting ? (
+              <Loader label="Signing in" />
+            ) : (
+              <>
+                Sign in <ArrowRight size={18} />
+              </>
+            )}
+          </span>
         </button>
-        <p className="form-foot">
-          New to Rajagajak? <Link to="/signup">Create an account</Link>
+
+        <p className="form-foot field--stagger" style={{ "--delay": "200ms" }}>
+          New to Raja Gajak? <Link to="/signup">Create an account</Link>
         </p>
       </form>
     </AuthLayout>
@@ -106,12 +127,20 @@ export default function Login() {
 function AuthLayout({ eyebrow, title, subtitle, children }) {
   return (
     <main className="auth-page">
+      {/* Ambient liquid blobs — decorative, aria-hidden, disabled under reduced motion via CSS */}
+      <div className="liquid-blobs" aria-hidden="true">
+        <span className="blob blob--one" />
+        <span className="blob blob--two" />
+        <span className="blob blob--three" />
+      </div>
+
       <section className="auth-intro">
         <div className="brand brand-light">
-          <span className="brand-mark">
-            <ShieldCheck size={18} />
-          </span>
-          Rajagajak
+          <img
+            className="brand-logo"
+            src="/rajagajak-logo.svg"
+            alt="Raja Gajak"
+          />
         </div>
         <div className="intro-copy">
           <span className="eyebrow">{eyebrow}</span>
@@ -122,9 +151,16 @@ function AuthLayout({ eyebrow, title, subtitle, children }) {
           A considered space for every member.
         </span>
       </section>
+
       <section className="auth-panel">
-        <div className="auth-card">
-          <div className="mobile-brand">Rajagajak</div>
+        <div className="auth-card auth-card--liquid">
+          <div className="mobile-brand">
+            <img
+              className="brand-logo"
+              src="/rajagajak-logo.svg"
+              alt="Raja Gajak"
+            />
+          </div>
           {children}
         </div>
       </section>

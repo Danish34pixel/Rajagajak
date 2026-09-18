@@ -3,20 +3,31 @@ const { uploadImage } = require("../services/image.service");
 const { successResponse } = require("../utils/response");
 
 const createImage = asyncHandler(async (req, res) => {
-  if (!req.file) {
-    const error = new Error("An image file is required in the 'image' field.");
+  if (!req.files?.length) {
+    const error = new Error(
+      "At least one image file is required in the 'images' field.",
+    );
     error.statusCode = 400;
     throw error;
   }
 
-  const image = await uploadImage({
-    buffer: req.file.buffer,
-    originalName: req.file.originalname,
-    mimeType: req.file.mimetype,
-    size: req.file.size,
-  });
-
-  return successResponse(res, image, "Image uploaded successfully", 201);
+  try {
+    const images = await Promise.all(
+      req.files.map((file) =>
+        uploadImage({
+          buffer: file.buffer,
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size,
+        }),
+      ),
+    );
+    return successResponse(res, images, "Images uploaded successfully", 201);
+  } catch (error) {
+    if (!error.statusCode) error.statusCode = 502;
+    error.message = `Image upload failed: ${error.message}`;
+    throw error;
+  }
 });
 
 module.exports = { createImage };
