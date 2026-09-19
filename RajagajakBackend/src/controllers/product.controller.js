@@ -6,6 +6,9 @@ const withImageArray = (product) => {
   const value = product.toObject ? product.toObject() : product;
   return {
     ...value,
+    mrpPerKg: value.mrp,
+    pricePerKg: value.finalPrice,
+    stockKg: value.stock,
     images: value.images?.length
       ? value.images
       : value.image
@@ -17,6 +20,8 @@ const withImageArray = (product) => {
 const normalizeProduct = (body) => {
   const mrp = Number(body.mrp);
   const discount = Number(body.discount);
+  const gstPercentage = Number(body.gstPercentage ?? 0);
+  const stock = Number(body.stock ?? 0);
   const bulletPoints = Array.isArray(body.bulletPoints)
     ? body.bulletPoints.map((point) => String(point).trim()).filter(Boolean)
     : [];
@@ -28,6 +33,11 @@ const normalizeProduct = (body) => {
     !Number.isFinite(discount) ||
     discount < 0 ||
     discount > 100 ||
+    !Number.isFinite(gstPercentage) ||
+    gstPercentage < 0 ||
+    gstPercentage > 100 ||
+    !Number.isFinite(stock) ||
+    stock < 0 ||
     images.length > 5
   )
     return null;
@@ -38,11 +48,14 @@ const normalizeProduct = (body) => {
     mrp,
     discount,
     finalPrice: Number((mrp - (mrp * discount) / 100).toFixed(2)),
+    gstPercentage,
+    stock,
+    category: String(body.category || "").trim(),
   };
 };
 
 const publicProductFields =
-  "title bulletPoints images image mrp discount finalPrice createdAt updatedAt";
+  "title bulletPoints images image mrp discount finalPrice gstPercentage stock category createdAt updatedAt";
 
 const listPublicProducts = asyncHandler(async (req, res) =>
   successResponse(
