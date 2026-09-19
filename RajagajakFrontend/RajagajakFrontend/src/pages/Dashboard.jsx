@@ -272,9 +272,9 @@ export default function Dashboard() {
                               "Explore this product from Rajagajak."}
                           </p>
                           <div className="product-price">
-                            <del>₹{item.mrp}</del>
+                            <del>₹{item.mrp}/kg</del>
                             <span>{item.discount}% OFF</span>
-                            <strong>₹{item.finalPrice}</strong>
+                            <strong>₹{item.finalPrice}/kg</strong>
                           </div>
                           {bulletPoints.length > 0 && (
                             <ul>

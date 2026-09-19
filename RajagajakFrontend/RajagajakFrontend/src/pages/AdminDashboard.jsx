@@ -3,15 +3,19 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { BarChart3, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import Navbar from "../components/Navbar.jsx";
 import * as api from "../services/api.js";
+import AdminOrderSection from "./AdminOrderSection.jsx";
 
 export default function AdminDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const section = location.pathname.includes("coupons")
     ? "coupons"
-    : "products";
+    : location.pathname.includes("orders")
+      ? "orders"
+      : "products";
   const [products, setProducts] = useState([]);
   const [coupons, setCoupons] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [product, setProduct] = useState({
@@ -20,6 +24,9 @@ export default function AdminDashboard() {
     images: [],
     mrp: "",
     discount: "0",
+    gstPercentage: "0",
+    stock: "0",
+    category: "",
   });
   const [coupon, setCoupon] = useState({
     code: "",
@@ -39,18 +46,22 @@ export default function AdminDashboard() {
 
   const load = async () => {
     try {
-      const [productResponse, couponResponse] = await Promise.all([
-        api.adminProducts(),
-        api.adminCoupons(),
-      ]);
+      const [productResponse, couponResponse, orderResponse] =
+        await Promise.all([
+          api.adminProducts(),
+          api.adminCoupons(),
+          api.adminOrders(),
+        ]);
       setProducts(productResponse.data);
       setCoupons(couponResponse.data);
+      setOrders(orderResponse.data);
     } catch (requestError) {
       setError(requestError.message);
     }
   };
   useEffect(() => {
-    load();
+    const timer = setTimeout(load, 0);
+    return () => clearTimeout(timer);
   }, []);
   const finalPrice = Math.max(
     0,
@@ -83,6 +94,9 @@ export default function AdminDashboard() {
         images: [...product.images, ...uploadedImages],
         mrp: Number(product.mrp),
         discount: Number(product.discount),
+        gstPercentage: Number(product.gstPercentage),
+        stock: Number(product.stock),
+        category: product.category,
         bulletPoints: product.bulletPoints.filter(Boolean),
       };
       if (editing) await api.updateProduct(editing, payload);
@@ -95,6 +109,9 @@ export default function AdminDashboard() {
         images: [],
         mrp: "",
         discount: "0",
+        gstPercentage: "0",
+        stock: "0",
+        category: "",
       });
       selectedImages.forEach(({ preview }) => URL.revokeObjectURL(preview));
       setSelectedImages([]);
@@ -160,6 +177,9 @@ export default function AdminDashboard() {
           ? [item.image]
           : [],
       bulletPoints: item.bulletPoints.length ? item.bulletPoints : [""],
+      gstPercentage: item.gstPercentage ?? "0",
+      stock: item.stock ?? "0",
+      category: item.category || "",
     });
     navigate("/admin/products/edit");
   };
@@ -208,6 +228,12 @@ export default function AdminDashboard() {
           >
             Coupons ({coupons.length})
           </Link>
+          <Link
+            className={section === "orders" ? "active" : ""}
+            to="/admin/orders"
+          >
+            Orders ({orders.length})
+          </Link>
         </nav>
         {error && <div className="alert">{error}</div>}
         {notice && <div className="success-note">{notice}</div>}
@@ -229,7 +255,7 @@ export default function AdminDashboard() {
               setSelectedImages,
             }}
           />
-        ) : (
+        ) : section === "coupons" ? (
           <CouponSection
             {...{
               coupons,
@@ -241,6 +267,12 @@ export default function AdminDashboard() {
               editCoupon,
               remove,
             }}
+          />
+        ) : (
+          <AdminOrderSection
+            orders={orders}
+            reload={load}
+            setError={setError}
           />
         )}
       </main>
@@ -312,7 +344,7 @@ function ProductSection({
             required
             type="number"
             min="0"
-            placeholder="MRP"
+            placeholder="MRP per KG"
             value={product.mrp}
             onChange={(e) => setProduct({ ...product, mrp: e.target.value })}
           />
@@ -327,7 +359,33 @@ function ProductSection({
               setProduct({ ...product, discount: e.target.value })
             }
           />
-          <output>Final price: ₹{finalPrice.toFixed(2)}</output>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            placeholder="GST %"
+            value={product.gstPercentage}
+            onChange={(e) =>
+              setProduct({ ...product, gstPercentage: e.target.value })
+            }
+          />
+          <input
+            required
+            type="number"
+            min="0"
+            step="0.001"
+            placeholder="Stock"
+            value={product.stock}
+            onChange={(e) => setProduct({ ...product, stock: e.target.value })}
+          />
+          <input
+            placeholder="Category"
+            value={product.category}
+            onChange={(e) =>
+              setProduct({ ...product, category: e.target.value })
+            }
+          />
+          <output>Final price: ₹{finalPrice.toFixed(2)}/kg</output>
         </div>
         <label className="upload-field">
           Product images (up to 5)
@@ -441,6 +499,9 @@ function ProductSection({
                   images: [],
                   mrp: "",
                   discount: "0",
+                  gstPercentage: "0",
+                  stock: "0",
+                  category: "",
                 });
               }}
             >
@@ -455,7 +516,8 @@ function ProductSection({
             <div>
               <strong>{item.title}</strong>
               <span>
-                {item.discount}% off · ₹{item.finalPrice.toFixed(2)}
+                {item.discount}% off · ₹{item.finalPrice.toFixed(2)}/kg ·{" "}
+                {item.stock} KG in stock
               </span>
             </div>
             <div className="row-actions">

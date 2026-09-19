@@ -3,6 +3,7 @@ const { authenticate } = require("../middleware/auth.middleware");
 const { requireAdmin } = require("../middleware/admin.middleware");
 const products = require("../controllers/product.controller");
 const coupons = require("../controllers/coupon.controller");
+const orders = require("../controllers/order.controller");
 
 const router = express.Router();
 router.use(authenticate, requireAdmin);
@@ -16,4 +17,8 @@ router.post("/coupons", coupons.createCoupon);
 router.get("/coupons/:id", coupons.getCoupon);
 router.put("/coupons/:id", coupons.updateCoupon);
 router.delete("/coupons/:id", coupons.deleteCoupon);
+router.get("/orders", orders.listAdminOrders);
+router.get("/orders/:id", orders.getAdminOrder);
+router.patch("/orders/:id/status", orders.updateOrderStatus);
+router.patch("/orders/:id/cancel", orders.cancelAdminOrder);
 module.exports = router;

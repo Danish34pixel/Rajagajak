@@ -4,6 +4,12 @@ import Signup from "./pages/Signup.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import AdminDashboard from "./pages/AdminDashboard.jsx";
 import ProductDetails from "./pages/ProductDetails.jsx";
+import Bag from "./pages/Bag.jsx";
+import Checkout from "./pages/Checkout.jsx";
+import MyOrders from "./pages/MyOrders.jsx";
+import OrderDetails from "./pages/OrderDetails.jsx";
+import OrderSuccess from "./pages/OrderSuccess.jsx";
+import AdminOrderDetails from "./pages/AdminOrderDetails.jsx";
 import Profile from "./pages/Profile.jsx";
 import ProtectedRoute, { AdminRoute } from "./components/ProtectedRoute.jsx";
 import "./App.css";
@@ -14,13 +20,19 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/products/:id" element={<ProductDetails />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/profile" element={<Profile />} />
-          <Route path="/products/:id" element={<ProductDetails />} />
+          <Route path="/bag" element={<Bag />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/orders" element={<MyOrders />} />
+          <Route path="/orders/:id" element={<OrderDetails />} />
+          <Route path="/order-success/:id" element={<OrderSuccess />} />
         </Route>
         <Route element={<AdminRoute />}>
           <Route path="/admin/*" element={<AdminDashboard />} />
+          <Route path="/admin/orders/:id" element={<AdminOrderDetails />} />
         </Route>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

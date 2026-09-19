@@ -102,3 +102,32 @@ export const applyCoupon = (code, subtotal) =>
   });
 export const products = () => request("/products");
 export const product = (id) => request(`/products/${id}`);
+export const createOrder = (order) =>
+  request("/orders", { method: "POST", body: JSON.stringify(order) });
+export const quoteOrder = (items) =>
+  request("/orders/quote", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  });
+export const myOrders = () => request("/orders/my-orders");
+export const myOrder = (id) => request(`/orders/${id}`);
+export const cancelOrder = (id, reason) =>
+  request(`/orders/${id}/cancel`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason }),
+  });
+export const adminOrders = (status = "") =>
+  request(
+    `/admin/orders${status ? `?status=${encodeURIComponent(status)}` : ""}`,
+  );
+export const adminOrder = (id) => request(`/admin/orders/${id}`);
+export const updateOrderStatus = (id, status) =>
+  request(`/admin/orders/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+export const cancelAdminOrder = (id, reason) =>
+  request(`/admin/orders/${id}/cancel`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason }),
+  });
