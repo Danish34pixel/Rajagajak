@@ -77,12 +77,18 @@
   display: block;
   color: var(--green);
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 0.18em;
   font-size: 11px;
   font-weight: 700;
 }
 .auth-intro .eyebrow {
   color: var(--lime);
+}
+.signup-card .eyebrow {
+  color: var(--green);
+  letter-spacing: 0.16em;
+  margin-bottom: 8px;
+  font-size: 11px;
 }
 .intro-copy h1 {
   color: var(--color-background);
@@ -229,9 +235,18 @@
 }
 .signup-card {
   width: min(100%, 600px);
+  padding: 28px 28px 20px;
 }
 .signup-card h2 {
-  font-size: 29px;
+  font-size: clamp(32px, 3vw, 40px);
+  line-height: 1.08;
+  margin: 0 0 10px;
+  letter-spacing: -0.05em;
+}
+.signup-card .section-subtitle {
+  margin: 0 0 18px;
+  text-align: left;
+  color: var(--muted);
 }
 .signup-form {
   margin-top: 25px;
