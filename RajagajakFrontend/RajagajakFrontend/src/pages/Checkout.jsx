@@ -20,14 +20,41 @@ export default function Checkout() {
   });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [coupons, setCoupons] = useState([]);
+  const [couponError, setCouponError] = useState("");
+  const [selectedCouponCode, setSelectedCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [couponWindowOpen, setCouponWindowOpen] = useState(false);
   const cartKey = cartItems
     .map((item) => `${item.productId}:${item.quantityKg}`)
     .join("|");
   const [quoteResult, setQuoteResult] = useState(null);
   const [quoteFailure, setQuoteFailure] = useState(null);
+  const quote = quoteResult?.key === cartKey ? quoteResult.data : null;
+  const quoteError = quoteFailure?.key === cartKey ? quoteFailure.message : "";
 
   useEffect(() => {
     let active = true;
+    api
+      .activeCoupons()
+      .then((response) => {
+        if (active) setCoupons(response.data || []);
+      })
+      .catch(() => {
+        if (active) setCoupons([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setQuoteResult(null);
+    setQuoteFailure(null);
+    setAppliedCoupon(null);
+    setApplyingCoupon(false);
     if (!cartItems.length) return undefined;
     api
       .quoteOrder(
@@ -52,8 +79,60 @@ export default function Checkout() {
     };
   }, [cartItems, cartKey]);
 
-  const quote = quoteResult?.key === cartKey ? quoteResult.data : null;
-  const quoteError = quoteFailure?.key === cartKey ? quoteFailure.message : "";
+  useEffect(() => {
+    if (!selectedCouponCode || !quote) {
+      if (!selectedCouponCode) {
+        setAppliedCoupon(null);
+        setCouponError("");
+      }
+      return;
+    }
+
+    const subtotal = Number(quote.pricing?.subtotal || 0);
+    if (!subtotal) return;
+
+    let active = true;
+    setApplyingCoupon(true);
+    setCouponError("");
+    api
+      .applyCoupon(selectedCouponCode, subtotal)
+      .then((response) => {
+        if (active) {
+          setAppliedCoupon(response.data);
+          setCouponWindowOpen(false);
+        }
+      })
+      .catch((requestError) => {
+        if (active) {
+          setAppliedCoupon(null);
+          setCouponError(requestError.message || "Unable to apply coupon.");
+        }
+      })
+      .finally(() => {
+        if (active) setApplyingCoupon(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [selectedCouponCode, quote, cartKey]);
+  const subtotal = Number(quote?.pricing?.subtotal || 0);
+  const couponDiscount = appliedCoupon
+    ? Math.min(Math.max(0, Number(appliedCoupon.discount || 0)), subtotal)
+    : 0;
+  const selectedCoupon = coupons.find(
+    (coupon) => coupon.code === selectedCouponCode,
+  );
+  const baseTaxableAmount = Number(quote?.pricing?.taxableAmount || 0);
+  const shippingCharges = Number(quote?.pricing?.shippingCharges || 0);
+  const discountedTaxableAmount = Math.max(
+    0,
+    baseTaxableAmount - couponDiscount,
+  );
+  const currentGrandTotal =
+    quote && Number.isFinite(Number(quote.pricing?.grandTotal))
+      ? Math.max(0, Number(quote.pricing.grandTotal) - couponDiscount)
+      : 0;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -68,6 +147,7 @@ export default function Checkout() {
           productId: item.productId,
           quantityKg: item.quantityKg,
         })),
+        couponCode: selectedCouponCode || undefined,
       });
       clearCart();
       navigate(`/order-success/${response.data._id}`, {
@@ -204,17 +284,139 @@ export default function Checkout() {
             {!quote && !quoteError && (
               <p>Refreshing prices from the catalogue...</p>
             )}
+
+            <div className="coupon-box">
+              <div className="coupon-box-header">
+                <span>Coupons</span>
+                {selectedCouponCode && (
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() => {
+                      setSelectedCouponCode("");
+                      setAppliedCoupon(null);
+                      setCouponError("");
+                      setApplyingCoupon(false);
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                className="apply-coupon-trigger"
+                onClick={() => setCouponWindowOpen(true)}
+              >
+                <span>
+                  <strong>
+                    {appliedCoupon ? "Coupon applied" : "Apply coupon"}
+                  </strong>
+                  <small>
+                    {appliedCoupon
+                      ? `${appliedCoupon.coupon} saved ${money(couponDiscount)}`
+                      : "Choose from available offers"}
+                  </small>
+                </span>
+                <span aria-hidden="true">›</span>
+              </button>
+              {appliedCoupon && selectedCoupon && (
+                <div className="selected-coupon-pill">
+                  {selectedCoupon.discountType === "percentage"
+                    ? `${selectedCoupon.discountValue}% discount applied`
+                    : `${money(selectedCoupon.discountValue)} discount applied`}{" "}
+                  · Save {money(couponDiscount)}
+                </div>
+              )}
+              {couponError && (
+                <div className="alert alert-inline">{couponError}</div>
+              )}
+            </div>
+
+            {couponWindowOpen && (
+              <div className="coupon-window-backdrop" role="presentation">
+                <section
+                  className="coupon-window"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-labelledby="coupon-window-title"
+                >
+                  <div className="coupon-window-header">
+                    <div>
+                      <span className="eyebrow">Offers for you</span>
+                      <h2 id="coupon-window-title">Apply coupon</h2>
+                    </div>
+                    <button
+                      type="button"
+                      className="coupon-window-close"
+                      aria-label="Close coupons"
+                      onClick={() => setCouponWindowOpen(false)}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {coupons.length === 0 ? (
+                    <p className="muted-copy">
+                      No coupons available right now.
+                    </p>
+                  ) : (
+                    <div className="coupon-option-list">
+                      {coupons.map((coupon) => {
+                        const isSelected = selectedCouponCode === coupon.code;
+                        return (
+                          <button
+                            key={coupon._id}
+                            type="button"
+                            className={`coupon-option ${isSelected ? "selected" : ""}`}
+                            onClick={() => {
+                              setCouponError("");
+                              setSelectedCouponCode(coupon.code);
+                            }}
+                          >
+                            <span className="coupon-code">{coupon.code}</span>
+                            <span className="coupon-title">{coupon.title}</span>
+                            <span className="coupon-meta">
+                              {coupon.discountType === "percentage"
+                                ? `${coupon.discountValue}% OFF`
+                                : `${money(coupon.discountValue)} OFF`}{" "}
+                              · Min {money(coupon.minimumOrderValue || 0)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {applyingCoupon && (
+                    <p className="muted-copy">Applying coupon...</p>
+                  )}
+                  {couponError && (
+                    <div className="alert alert-inline">{couponError}</div>
+                  )}
+                </section>
+              </div>
+            )}
+
             <div>
               <span>Subtotal</span>
-              <strong>{money(quote?.pricing.subtotal)}</strong>
+              <strong>{money(subtotal)}</strong>
             </div>
             <div>
               <span>Discount</span>
-              <strong>-{money(quote?.pricing.discount)}</strong>
+              <strong>-{money(quote?.pricing.discount || 0)}</strong>
             </div>
+            {appliedCoupon && (
+              <div className="coupon-discount-row">
+                <span>
+                  Coupon discount
+                  {selectedCoupon?.discountType === "percentage" &&
+                    ` (${selectedCoupon.discountValue}%)`}
+                </span>
+                <strong>-{money(couponDiscount)}</strong>
+              </div>
+            )}
             <div>
               <span>Taxable amount</span>
-              <strong>{money(quote?.pricing.taxableAmount)}</strong>
+              <strong>{money(discountedTaxableAmount)}</strong>
             </div>
             <div>
               <span>GST</span>
@@ -222,12 +424,12 @@ export default function Checkout() {
             </div>
             <div>
               <span>Shipping</span>
-              <strong>₹0</strong>
+              <strong>{money(shippingCharges)}</strong>
             </div>
             <hr />
             <div className="grand-total">
               <span>Grand total</span>
-              <strong>{money(quote?.pricing.grandTotal)}</strong>
+              <strong>{money(currentGrandTotal)}</strong>
             </div>
             <p>
               Cash on delivery architecture is active. Online payment
