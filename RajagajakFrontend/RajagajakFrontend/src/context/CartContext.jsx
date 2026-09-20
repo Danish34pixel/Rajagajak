@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CartContext } from "./cart-context.js";
+import { useAuth } from "./useAuth.js";
 
-const CART_KEY = "rajagajak_cart";
+const GUEST_CART_KEY = "rajagajak_cart_guest";
 
-const restoreCart = () => {
+const getCartKey = (user) => {
+  const userId = user?._id || user?.id || user?.email;
+  return userId ? `rajagajak_cart_${userId}` : GUEST_CART_KEY;
+};
+
+const restoreCart = (key) => {
   try {
-    const savedCart = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    const savedCart = JSON.parse(localStorage.getItem(key) || "[]");
     return Array.isArray(savedCart) ? savedCart : [];
   } catch {
     return [];
@@ -28,14 +34,20 @@ const normalizeItem = (item) => ({
 });
 
 export function CartProvider({ children }) {
+  const { user } = useAuth();
+  const cartKey = getCartKey(user);
   const [cartItems, setCartItems] = useState(() =>
-    restoreCart().map(normalizeItem),
+    restoreCart(cartKey).map(normalizeItem),
   );
 
   const persist = (nextItems) => {
     setCartItems(nextItems);
-    localStorage.setItem(CART_KEY, JSON.stringify(nextItems));
+    localStorage.setItem(cartKey, JSON.stringify(nextItems));
   };
+
+  useEffect(() => {
+    setCartItems(restoreCart(cartKey).map(normalizeItem));
+  }, [cartKey]);
 
   const addToCart = (product, quantityKg = 1) => {
     const productId = product._id || product.id;

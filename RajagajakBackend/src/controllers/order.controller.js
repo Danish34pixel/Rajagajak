@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const Order = require("../models/Order.model");
 const Product = require("../models/Product.model");
 const User = require("../models/User.model");
+const Coupon = require("../models/Coupon.model");
 const asyncHandler = require("../utils/asyncHandler");
 const { errorResponse, successResponse } = require("../utils/response");
 
@@ -163,7 +164,46 @@ const createOrder = asyncHandler(async (req, res) => {
     return errorResponse(res, error.message, 400);
   }
   const snapshots = calculated.map((item) => item.snapshot);
-  const pricing = buildPricing(snapshots);
+  let pricing = buildPricing(snapshots);
+  const couponCode = String(req.body.couponCode || "")
+    .trim()
+    .toUpperCase();
+  if (couponCode) {
+    const now = new Date();
+    const coupon = await Coupon.findOne({
+      code: couponCode,
+      isActive: true,
+      startDate: { $lte: now },
+      expiryDate: { $gte: now },
+    });
+    if (!coupon)
+      return errorResponse(res, "Selected coupon is not valid right now.", 400);
+
+    const subtotal = Number(pricing.subtotal);
+    if (
+      !Number.isFinite(subtotal) ||
+      subtotal < Number(coupon.minimumOrderValue || 0)
+    )
+      return errorResponse(
+        res,
+        `Minimum order value for this coupon is ₹${coupon.minimumOrderValue}.`,
+        400,
+      );
+
+    let discount =
+      coupon.discountType === "percentage"
+        ? (subtotal * coupon.discountValue) / 100
+        : coupon.discountValue;
+    if (coupon.maximumDiscount != null)
+      discount = Math.min(discount, coupon.maximumDiscount);
+    discount = Math.min(Number(discount.toFixed(2)), subtotal);
+
+    pricing = {
+      ...pricing,
+      discount: round(pricing.discount + discount),
+      grandTotal: round(Math.max(0, pricing.grandTotal - discount)),
+    };
+  }
   const decremented = [];
   try {
     for (const item of calculated) {

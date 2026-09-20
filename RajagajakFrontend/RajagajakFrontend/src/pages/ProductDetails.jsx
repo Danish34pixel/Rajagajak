@@ -20,14 +20,23 @@ export default function ProductDetails() {
   const [product, setProduct] = useState(null);
   const [error, setError] = useState("");
   const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedKg, setSelectedKg] = useState(1);
   const [openSection, setOpenSection] = useState("description");
   const [actionMessage, setActionMessage] = useState("");
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [id]);
 
   useEffect(() => {
     api
       .product(id)
       .then((response) => setProduct(response.data))
       .catch((requestError) => setError(requestError.message));
+  }, [id]);
+
+  useEffect(() => {
+    setSelectedKg(1);
   }, [id]);
 
   const images = useMemo(
@@ -49,16 +58,20 @@ export default function ProductDetails() {
     product?.description ||
     product?.bulletPoints?.join(" ") ||
     "No product description is available yet.";
+  const kgOptions = [1, 2, 3, 5, 10];
+  const maxStock = hasStock && stock > 0 ? stock : 10;
+
   const addProduct = (buyNow = false) => {
+    const nextQuantity = Math.max(1, Math.min(selectedKg, maxStock));
     if (hasStock && stock <= 0) {
       setActionMessage("This product is currently out of stock.");
       return;
     }
-    addToCart(product, 1);
+    addToCart(product, nextQuantity);
     if (buyNow) navigate("/checkout");
     else
       setActionMessage(
-        "Added to your bag. Choose the KG quantity at checkout.",
+        `${nextQuantity} KG of ${product.title} was added to your bag.`,
       );
   };
 
@@ -98,9 +111,49 @@ export default function ProductDetails() {
               {hasStock && (
                 <p className="kg-stock">Available stock: {stock} KG</p>
               )}
+              <div className="kg-selector">
+                <span className="selection-label">
+                  How many KG do you need?
+                </span>
+                <div className="kg-preset-group">
+                  {kgOptions.map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={selectedKg === value ? "selected" : ""}
+                      onClick={() => setSelectedKg(Math.min(value, maxStock))}
+                    >
+                      {value} KG
+                    </button>
+                  ))}
+                </div>
+                <div className="quantity-control">
+                  <button
+                    type="button"
+                    aria-label="Decrease KG quantity"
+                    onClick={() =>
+                      setSelectedKg((current) => Math.max(1, current - 1))
+                    }
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  <span>{selectedKg} KG</span>
+                  <button
+                    type="button"
+                    aria-label="Increase KG quantity"
+                    onClick={() =>
+                      setSelectedKg((current) =>
+                        Math.min(current + 1, maxStock),
+                      )
+                    }
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
               <p className="kg-note">
-                Price shown per kilogram. Select your required quantity during
-                checkout.
+                Selected: {selectedKg} KG · Total:{" "}
+                {money(product.finalPrice * selectedKg)}
               </p>
               <div className="product-actions">
                 <button
