@@ -1,5 +1,5 @@
 const API_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000"
+  import.meta.env.VITE_API_URL || "https://rajagajak-2.onrender.com"
 ).replace(/\/$/, "");
 const API_ROOT = `${API_URL}/api/v1`;
 
