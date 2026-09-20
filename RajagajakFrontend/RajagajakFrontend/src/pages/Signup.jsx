@@ -94,7 +94,7 @@ export default function Signup() {
             />
           </div>
           <span className="eyebrow">Create account</span>
-          <h2>Start with the basics</h2>
+          <h2>Bring home the joy of every bite</h2>
           <p className="section-subtitle">
             All fields are required for a complete profile.
           </p>
