@@ -33,6 +33,32 @@ const normalizeItem = (item) => ({
   stockKg: item.stockKg ?? item.stock ?? null,
 });
 
+const mergeCartItems = (primaryItems, guestItems) => {
+  const merged = new Map();
+
+  [...primaryItems, ...guestItems].forEach((item) => {
+    const normalized = normalizeItem(item);
+    const existing = merged.get(normalized.productId);
+    if (!existing) {
+      merged.set(normalized.productId, normalized);
+      return;
+    }
+
+    const quantityKg = existing.quantityKg + normalized.quantityKg;
+    const stockKg = existing.stockKg ?? normalized.stockKg;
+    merged.set(normalized.productId, {
+      ...existing,
+      quantityKg:
+        stockKg !== null && stockKg !== undefined
+          ? Math.min(quantityKg, Number(stockKg))
+          : quantityKg,
+      stockKg,
+    });
+  });
+
+  return Array.from(merged.values());
+};
+
 export function CartProvider({ children }) {
   const { user } = useAuth();
   const cartKey = getCartKey(user);
@@ -46,8 +72,18 @@ export function CartProvider({ children }) {
   };
 
   useEffect(() => {
-    setCartItems(restoreCart(cartKey).map(normalizeItem));
-  }, [cartKey]);
+    const storedItems = restoreCart(cartKey).map(normalizeItem);
+    if (!user) {
+      setCartItems(storedItems);
+      return;
+    }
+
+    const guestItems = restoreCart(GUEST_CART_KEY).map(normalizeItem);
+    const nextItems = mergeCartItems(storedItems, guestItems);
+    setCartItems(nextItems);
+    localStorage.setItem(cartKey, JSON.stringify(nextItems));
+    localStorage.removeItem(GUEST_CART_KEY);
+  }, [cartKey, user]);
 
   const addToCart = (product, quantityKg = 1) => {
     const productId = product._id || product.id;

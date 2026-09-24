@@ -524,6 +524,27 @@
   border-bottom: 1px solid rgba(31, 88, 46, 0.05);
 }
 
+.fly-to-cart-image {
+  position: fixed;
+  z-index: 100;
+  pointer-events: none;
+  object-fit: cover;
+  border-radius: 14px;
+  box-shadow: 0 12px 28px rgba(17, 64, 36, 0.24), 0 0 0 4px rgba(255, 255, 255, 0.72);
+  will-change: left, top, width, height, opacity, transform;
+}
+
+.bag-link.cart-target-bounce {
+  animation: cart-target-bounce 360ms cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+
+@keyframes cart-target-bounce {
+  0% { transform: scale(1); }
+  42% { transform: scale(1.2); }
+  72% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
 .modern-product-card {
   border: 1px solid var(--line);
   background: var(--white);

@@ -1,20 +1,36 @@
 import { useState } from "react";
 import { Eye, EyeOff, LockKeyhole, ArrowRight } from "lucide-react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth.js";
 import Loader from "../components/Loader.jsx";
 import "../auth-liquid.css";
 
 const isAdmin = (user) => String(user?.role).toLowerCase() === "admin";
+const PENDING_CHECKOUT_KEY = "rajagajak_pending_checkout";
+
+const getRoutePath = (route) => {
+  if (!route?.pathname) return null;
+  return `${route.pathname}${route.search || ""}${route.hash || ""}`;
+};
 
 export default function Login() {
   const { user, signIn } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [shake, setShake] = useState(false);
+
+  const getPostLoginPath = () => {
+    const pendingRoute = getRoutePath(location.state?.from);
+    if (pendingRoute) return pendingRoute;
+    if (localStorage.getItem(PENDING_CHECKOUT_KEY) === "true") {
+      return "/checkout";
+    }
+    return null;
+  };
 
   if (user)
     return <Navigate to={isAdmin(user) ? "/admin" : "/dashboard"} replace />;
@@ -35,7 +51,12 @@ export default function Login() {
     setSubmitting(true);
     try {
       const loggedInUser = await signIn(form);
-      navigate(isAdmin(loggedInUser) ? "/admin" : "/dashboard", {
+      const adminUser = isAdmin(loggedInUser);
+      const pendingPath = adminUser ? null : getPostLoginPath();
+      if (adminUser || pendingPath) {
+        localStorage.removeItem(PENDING_CHECKOUT_KEY);
+      }
+      navigate(adminUser ? "/admin" : pendingPath || "/dashboard", {
         replace: true,
       });
     } catch (requestError) {
