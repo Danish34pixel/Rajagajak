@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Navbar from "../components/Navbar.jsx";
 import { useCart } from "../context/useCart.js";
+import { useFlyToCart } from "../components/FlyToCart.jsx";
 import * as api from "../services/api.js";
 
 const sectionVariants = {
@@ -28,6 +29,7 @@ const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 export default function Dashboard() {
   const { addToCart } = useCart();
+  const { triggerFlight } = useFlyToCart();
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
@@ -66,7 +68,15 @@ export default function Dashboard() {
     return ["All", ...Array.from(unique)];
   }, [products]);
 
-  const handleAddToCart = (item) => {
+  const handleAddToCart = (item, event) => {
+    const source = event.currentTarget
+      .closest(".product-card")
+      ?.querySelector(".product-card-media img");
+    triggerFlight({
+      source,
+      imageSrc: item.images?.[0] || item.image || "",
+      alt: item.title,
+    });
     addToCart(item, 1);
     setCartMessage(`${item.title} was added to your cart.`);
     window.clearTimeout(handleAddToCart.timeout);
@@ -418,7 +428,7 @@ export default function Dashboard() {
                               className="primary-button product-cart-button"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                handleAddToCart(item);
+                                handleAddToCart(item, event);
                               }}
                             >
                               Add to Cart

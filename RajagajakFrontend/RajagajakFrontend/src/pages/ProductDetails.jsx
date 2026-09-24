@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -9,6 +9,7 @@ import {
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
 import { useCart } from "../context/useCart.js";
+import { useFlyToCart } from "../components/FlyToCart.jsx";
 import * as api from "../services/api.js";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
@@ -17,6 +18,8 @@ export default function ProductDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToCart } = useCart();
+  const { triggerFlight } = useFlyToCart();
+  const productImageRef = useRef(null);
   const [product, setProduct] = useState(null);
   const [error, setError] = useState("");
   const [selectedImage, setSelectedImage] = useState(0);
@@ -67,6 +70,11 @@ export default function ProductDetails() {
       setActionMessage("This product is currently out of stock.");
       return;
     }
+    triggerFlight({
+      source: productImageRef.current,
+      imageSrc: images[selectedImage] || images[0] || "",
+      alt: product.title,
+    });
     addToCart(product, nextQuantity);
     if (buyNow) navigate("/checkout");
     else
@@ -95,6 +103,7 @@ export default function ProductDetails() {
               images={images}
               selectedImage={selectedImage}
               setSelectedImage={setSelectedImage}
+              imageRef={productImageRef}
             />
             <div className="product-detail-copy">
               <span className="eyebrow">
@@ -217,7 +226,13 @@ export default function ProductDetails() {
   );
 }
 
-function ProductGallery({ product, images, selectedImage, setSelectedImage }) {
+function ProductGallery({
+  product,
+  images,
+  selectedImage,
+  setSelectedImage,
+  imageRef,
+}) {
   const move = (amount) =>
     setSelectedImage(
       Math.max(0, Math.min(selectedImage + amount, images.length - 1)),
@@ -237,6 +252,7 @@ function ProductGallery({ product, images, selectedImage, setSelectedImage }) {
         {images.length ? (
           <img
             className="product-detail-image"
+            ref={imageRef}
             src={images[selectedImage] || images[0]}
             alt={product.title}
           />

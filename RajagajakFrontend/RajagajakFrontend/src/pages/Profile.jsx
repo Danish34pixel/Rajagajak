@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   Edit3,
+  LogOut,
   Mail,
   MapPin,
   Phone,
@@ -130,14 +131,25 @@ export default function Profile() {
                 <p>{roleLabel(profile.role)}</p>
               </div>
               {!editing && (
-                <button
-                  className="primary-button profile-edit-button"
-                  type="button"
-                  onClick={() => setEditing(true)}
-                >
-                  <Edit3 size={16} />
-                  Edit Profile
-                </button>
+                <>
+                  <button
+                    className="primary-button profile-edit-button"
+                    type="button"
+                    onClick={() => setEditing(true)}
+                  >
+                    <Edit3 size={16} />
+                    Edit Profile
+                  </button>
+                  <button
+                    className="icon-button"
+                    type="button"
+                    onClick={signOut}
+                    title="Log out"
+                    aria-label="Log out"
+                  >
+                    <LogOut size={18} />
+                  </button>
+                </>
               )}
             </section>
             {notice && <div className="success-note">{notice}</div>}
