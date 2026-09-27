@@ -4,8 +4,14 @@ const Order = require("../models/Order.model");
 const Product = require("../models/Product.model");
 const User = require("../models/User.model");
 const Coupon = require("../models/Coupon.model");
+const CouponRedemption = require("../models/CouponRedemption.model");
 const asyncHandler = require("../utils/asyncHandler");
 const { errorResponse, successResponse } = require("../utils/response");
+const {
+  DELIVERY_AREA_ERROR,
+  calculateDelivery,
+} = require("../services/shipping.service");
+const { evaluateCoupon } = require("../services/coupon.service");
 
 const round = (value) => Number(value.toFixed(2));
 const validStatuses = [
@@ -28,11 +34,21 @@ const isId = (value) => mongoose.Types.ObjectId.isValid(value);
 const normalizeAddress = (address = {}) => ({
   name: String(address.name || "").trim(),
   mobile: String(address.mobile || "").trim(),
-  address: String(address.address || "").trim(),
+  address: String(address.address || address.houseShop || "").trim(),
+  area: String(address.area || "").trim(),
   city: String(address.city || "").trim(),
   state: String(address.state || "").trim(),
   pincode: String(address.pincode || address.pinCode || "").trim(),
 });
+
+const deliveryErrorMessage = (error) => {
+  if (error.message === DELIVERY_AREA_ERROR) return DELIVERY_AREA_ERROR;
+  if (error.message === "We couldn't find that delivery address.")
+    return error.message;
+  if (error.message === "A complete delivery address is required.")
+    return "Please enter a valid delivery address.";
+  return "We couldn't calculate delivery charges. Please try again or enter your delivery address.";
+};
 
 const calculateItems = async (requestedItems) => {
   if (!Array.isArray(requestedItems) || requestedItems.length === 0)
@@ -81,6 +97,7 @@ const calculateItems = async (requestedItems) => {
       snapshot: {
         productId: product._id,
         productName: product.title,
+        category: product.category || "",
         image: product.images?.[0] || product.image || "",
         quantityKg: requested.quantityKg,
         pricePerKg: unitPrice,
@@ -97,7 +114,7 @@ const calculateItems = async (requestedItems) => {
   return items;
 };
 
-const buildPricing = (snapshots) => {
+const buildPricing = (snapshots, shippingCharges = 0) => {
   const subtotal = round(
     snapshots.reduce((sum, item) => sum + item.mrpPerKg * item.quantityKg, 0),
   );
@@ -110,7 +127,6 @@ const buildPricing = (snapshots) => {
   const totalGST = round(
     snapshots.reduce((sum, item) => sum + item.gstAmount, 0),
   );
-  const shippingCharges = 0;
   return {
     subtotal,
     discount,
@@ -131,6 +147,18 @@ const quoteOrder = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     return errorResponse(res, error.message, 400);
+  }
+});
+
+const quoteShipping = asyncHandler(async (req, res) => {
+  try {
+    const shipping = await calculateDelivery({
+      customerLocation: req.body.customerLocation,
+      shippingAddress: req.body.shippingAddress,
+    });
+    return successResponse(res, { shipping });
+  } catch (error) {
+    return errorResponse(res, deliveryErrorMessage(error), 400);
   }
 });
 
@@ -157,53 +185,200 @@ const createOrder = asyncHandler(async (req, res) => {
       "Please provide a complete valid delivery address.",
       400,
     );
+  let shipping;
+  try {
+    shipping = await calculateDelivery({
+      customerLocation: req.body.customerLocation,
+      shippingAddress,
+    });
+    shippingAddress.latitude = shipping.destination.latitude;
+    shippingAddress.longitude = shipping.destination.longitude;
+  } catch (error) {
+    return errorResponse(res, deliveryErrorMessage(error), 400);
+  }
   let calculated;
   try {
     calculated = await calculateItems(req.body.items);
   } catch (error) {
     return errorResponse(res, error.message, 400);
   }
-  const snapshots = calculated.map((item) => item.snapshot);
-  let pricing = buildPricing(snapshots);
+  const baseSnapshots = calculated.map((item) => item.snapshot);
+  let snapshots = baseSnapshots;
+  let pricing = buildPricing(snapshots, shipping.shippingCharge);
+  let coupon = null;
+  let couponResult = null;
   const couponCode = String(req.body.couponCode || "")
     .trim()
     .toUpperCase();
   if (couponCode) {
-    const now = new Date();
-    const coupon = await Coupon.findOne({
-      code: couponCode,
-      isActive: true,
-      startDate: { $lte: now },
-      expiryDate: { $gte: now },
-    });
-    if (!coupon)
-      return errorResponse(res, "Selected coupon is not valid right now.", 400);
+    coupon = await Coupon.findOne({ code: couponCode });
+    if (!coupon) return errorResponse(res, "Coupon not found.", 400);
+    try {
+      const userId = req.user.sub;
+      const [userOrderCount, redemption] = await Promise.all([
+        Order.countDocuments({ userId, orderStatus: { $ne: "cancelled" } }),
+        CouponRedemption.findOne({ couponId: coupon._id, userId }),
+      ]);
+      couponResult = evaluateCoupon({
+        coupon,
+        items: snapshots,
+        shipping,
+        shippingAddress,
+        paymentMethod: "cod",
+        userId,
+        userOrderCount,
+        userCouponUseCount: redemption?.count || 0,
+      });
+      snapshots = couponResult.items;
+      pricing = couponResult.pricing;
+    } catch (error) {
+      return errorResponse(res, error.message, 400);
+    }
+  }
+  const orderNumber = () =>
+    `RJG-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  const makeOrderSnapshot = (items, orderPricing, appliedCoupon = null) => ({
+    orderNumber: orderNumber(),
+    clientRequestId,
+    userId: req.user.sub,
+    items,
+    shippingAddress,
+    shipping,
+    pricing: orderPricing,
+    ...(appliedCoupon
+      ? {
+          coupon: {
+            couponId: coupon._id,
+            code: coupon.code,
+            type: appliedCoupon.coupon.type,
+            discount: appliedCoupon.discount,
+            shippingDiscount: appliedCoupon.shippingDiscount,
+            originalShipping: appliedCoupon.originalShipping,
+            finalShipping: appliedCoupon.finalShipping,
+            campaignName: appliedCoupon.coupon.campaignName,
+          },
+        }
+      : {}),
+    paymentMethod: "cod",
+    paymentStatus: "cod",
+  });
 
-    const subtotal = Number(pricing.subtotal);
-    if (
-      !Number.isFinite(subtotal) ||
-      subtotal < Number(coupon.minimumOrderValue || 0)
-    )
+  if (couponResult) {
+    const session = await mongoose.startSession();
+    let createdOrder;
+    try {
+      await session.withTransaction(async () => {
+        const now = new Date();
+        const currentCoupon = await Coupon.findById(coupon._id).session(
+          session,
+        );
+        if (!currentCoupon) throw new Error("Coupon not found.");
+        const [userOrderCount, redemption] = await Promise.all([
+          Order.countDocuments({
+            userId: req.user.sub,
+            orderStatus: { $ne: "cancelled" },
+          }).session(session),
+          CouponRedemption.findOne({
+            couponId: coupon._id,
+            userId: req.user.sub,
+          }).session(session),
+        ]);
+        couponResult = evaluateCoupon({
+          coupon: currentCoupon,
+          items: baseSnapshots,
+          shipping,
+          shippingAddress,
+          paymentMethod: "cod",
+          userId: req.user.sub,
+          userOrderCount,
+          userCouponUseCount: redemption?.count || 0,
+          now,
+        });
+        coupon = currentCoupon;
+        snapshots = couponResult.items;
+        pricing = couponResult.pricing;
+        const usageFilter = {
+          _id: currentCoupon._id,
+          isActive: true,
+          startDate: { $lte: now },
+          expiryDate: { $gte: now },
+        };
+        if (currentCoupon.usageLimit != null) {
+          usageFilter.$or = [
+            { usedCount: { $lt: currentCoupon.usageLimit } },
+            { usedCount: { $exists: false } },
+          ];
+        }
+        const reservedCoupon = await Coupon.findOneAndUpdate(
+          usageFilter,
+          { $inc: { usedCount: 1 } },
+          { new: true, session },
+        );
+        if (!reservedCoupon) throw new Error("Coupon usage limit reached.");
+
+        const redemptionFilter = {
+          couponId: currentCoupon._id,
+          userId: req.user.sub,
+        };
+        if (currentCoupon.perUserLimit != null)
+          redemptionFilter.count = { $lt: currentCoupon.perUserLimit };
+        await CouponRedemption.updateOne(
+          { couponId: currentCoupon._id, userId: req.user.sub },
+          { $setOnInsert: { count: 0 } },
+          { upsert: true, session, setDefaultsOnInsert: false },
+        );
+        const updatedRedemption = await CouponRedemption.findOneAndUpdate(
+          redemptionFilter,
+          {
+            $inc: { count: 1 },
+            $set: { lastOrderId: new mongoose.Types.ObjectId() },
+          },
+          { new: true, session },
+        );
+        if (!updatedRedemption)
+          throw new Error(
+            "You have already used this coupon the maximum number of times.",
+          );
+
+        for (const item of calculated) {
+          const updated = await Product.findOneAndUpdate(
+            {
+              _id: item.product._id,
+              stock: { $gte: item.snapshot.quantityKg },
+            },
+            { $inc: { stock: -item.snapshot.quantityKg } },
+            { new: true, session },
+          );
+          if (!updated)
+            throw new Error(
+              `${item.product.title} is no longer available in the requested KG quantity.`,
+            );
+        }
+        createdOrder = new Order(
+          makeOrderSnapshot(snapshots, pricing, couponResult),
+        );
+        await createdOrder.save({ session });
+        await CouponRedemption.updateOne(
+          { couponId: currentCoupon._id, userId: req.user.sub },
+          { $set: { lastOrderId: createdOrder._id } },
+          { session },
+        );
+      });
+      return successResponse(res, createdOrder, "Order placed", 201);
+    } catch (error) {
       return errorResponse(
         res,
-        `Minimum order value for this coupon is ₹${coupon.minimumOrderValue}.`,
+        error.message.includes("duplicate")
+          ? "This order request was already processed."
+          : error.message,
         400,
       );
-
-    let discount =
-      coupon.discountType === "percentage"
-        ? (subtotal * coupon.discountValue) / 100
-        : coupon.discountValue;
-    if (coupon.maximumDiscount != null)
-      discount = Math.min(discount, coupon.maximumDiscount);
-    discount = Math.min(Number(discount.toFixed(2)), subtotal);
-
-    pricing = {
-      ...pricing,
-      discount: round(pricing.discount + discount),
-      grandTotal: round(Math.max(0, pricing.grandTotal - discount)),
-    };
+    } finally {
+      await session.endSession();
+    }
   }
+
+  const orderSnapshot = makeOrderSnapshot(snapshots, pricing);
   const decremented = [];
   try {
     for (const item of calculated) {
@@ -218,17 +393,7 @@ const createOrder = asyncHandler(async (req, res) => {
         );
       decremented.push(item.snapshot);
     }
-    const orderNumber = `RJG-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
-    const order = await Order.create({
-      orderNumber,
-      clientRequestId,
-      userId: req.user.sub,
-      items: snapshots,
-      shippingAddress,
-      pricing,
-      paymentMethod: "cod",
-      paymentStatus: "cod",
-    });
+    const order = await Order.create(orderSnapshot);
     return successResponse(res, order, "Order placed", 201);
   } catch (error) {
     for (const item of decremented)
@@ -359,6 +524,9 @@ const cancelAdminOrder = asyncHandler(async (req, res) => {
 module.exports = {
   createOrder,
   quoteOrder,
+  quoteShipping,
+  calculateItems,
+  buildPricing,
   listMyOrders,
   getMyOrder,
   cancelOrder,

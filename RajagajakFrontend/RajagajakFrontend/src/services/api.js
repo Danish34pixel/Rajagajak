@@ -19,7 +19,7 @@ export class ApiError extends Error {
   }
 }
 
-const request = async (path, options = {}) => {
+const request = async (path, options = {}, apiRoot = API_ROOT) => {
   const token = localStorage.getItem("rajagajak_token");
   const headers = {
     ...(options.body instanceof FormData
@@ -30,7 +30,7 @@ const request = async (path, options = {}) => {
   if (token) headers.Authorization = `Bearer ${token}`;
 
   try {
-    const response = await fetch(`${API_ROOT}${path}`, { ...options, headers });
+    const response = await fetch(`${apiRoot}${path}`, { ...options, headers });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new ApiError(
@@ -80,6 +80,11 @@ export const updateProduct = (id, product) =>
 export const deleteProduct = (id) =>
   request(`/admin/products/${id}`, { method: "DELETE" });
 export const adminCoupons = () => request("/admin/coupons");
+export const adminCoupon = (id) => request(`/admin/coupons/${id}`);
+export const adminCouponUsers = (query = "") =>
+  request(
+    `/admin/coupon-users${query ? `?q=${encodeURIComponent(query)}` : ""}`,
+  );
 export const createCoupon = (coupon) =>
   request("/admin/coupons", { method: "POST", body: JSON.stringify(coupon) });
 export const updateCoupon = (id, coupon) =>
@@ -95,11 +100,15 @@ export const uploadAdminImages = (files) => {
   return request("/images", { method: "POST", body: form });
 };
 export const activeCoupons = () => request("/coupons/active");
-export const applyCoupon = (code, subtotal) =>
-  request("/coupons/apply", {
-    method: "POST",
-    body: JSON.stringify({ code, subtotal }),
-  });
+export const applyCoupon = (code, checkout) =>
+  request(
+    "/coupons/apply",
+    {
+      method: "POST",
+      body: JSON.stringify({ code, ...checkout }),
+    },
+    `${API_URL}/api`,
+  );
 export const products = () => request("/products");
 export const product = (id) => request(`/products/${id}`);
 export const createOrder = (order) =>
@@ -109,6 +118,15 @@ export const quoteOrder = (items) =>
     method: "POST",
     body: JSON.stringify({ items }),
   });
+export const quoteShipping = (delivery) =>
+  request(
+    "/delivery/calculate",
+    {
+      method: "POST",
+      body: JSON.stringify(delivery),
+    },
+    `${API_URL}/api`,
+  );
 export const myOrders = () => request("/orders/my-orders");
 export const myOrder = (id) => request(`/orders/${id}`);
 export const cancelOrder = (id, reason) =>

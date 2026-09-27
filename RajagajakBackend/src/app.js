@@ -6,6 +6,8 @@ const env = require("./config/env");
 const apiRoutes = require("./routes");
 const notFound = require("./middleware/notFound.middleware");
 const errorHandler = require("./middleware/error.middleware");
+const deliveryRoutes = require("./routes/delivery.routes");
+const couponRoutes = require("./routes/coupon.routes");
 
 const app = express();
 
@@ -31,6 +33,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1", apiRoutes);
+app.use("/api/coupons", couponRoutes);
+app.use("/api/delivery", deliveryRoutes);
 app.use(notFound);
 app.use(errorHandler);
 

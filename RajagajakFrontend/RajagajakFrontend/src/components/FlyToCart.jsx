@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 
 const FlyToCartContext = createContext(null);
 
@@ -17,6 +17,8 @@ const isVisible = (element) => {
 
 export function FlyToCartProvider({ children }) {
   const [flights, setFlights] = useState([]);
+  const [cartBounce, setCartBounce] = useState(0);
+  const bounceTimeout = useRef(null);
 
   const triggerFlight = ({ source, imageSrc, alt }) => {
     const target = document.querySelector("[data-cart-target]");
@@ -51,12 +53,18 @@ export function FlyToCartProvider({ children }) {
         target,
       },
     ]);
+
+    window.clearTimeout(bounceTimeout.current);
+    bounceTimeout.current = window.setTimeout(() => {
+      setCartBounce((value) => value + 1);
+    }, 720);
   };
 
   const finishFlight = (flight) => {
     setFlights((current) => current.filter(({ id }) => id !== flight.id));
     if (flight.target && isVisible(flight.target)) {
-      bounceCartTarget(flight.target);
+      window.clearTimeout(bounceTimeout.current);
+      setCartBounce((value) => value + 1);
     }
   };
 
@@ -89,23 +97,11 @@ export function FlyToCartProvider({ children }) {
               top: [
                 flight.startY,
                 flight.startY - flight.lift,
-                flight.startY +
-                  (flight.endY - flight.startY) * 0.55 -
-                  flight.arc,
+                flight.startY + (flight.endY - flight.startY) * 0.55 - flight.arc,
                 flight.endY,
               ],
-              width: [
-                flight.startSize,
-                flight.startSize * 0.94,
-                flight.endSize * 1.35,
-                flight.endSize,
-              ],
-              height: [
-                flight.startSize,
-                flight.startSize * 0.94,
-                flight.endSize * 1.35,
-                flight.endSize,
-              ],
+              width: [flight.startSize, flight.startSize * 0.94, flight.endSize * 1.35, flight.endSize],
+              height: [flight.startSize, flight.startSize * 0.94, flight.endSize * 1.35, flight.endSize],
               opacity: [0, 1, 1, 0],
               scale: [0.82, 1.05, 0.92, 0.55],
               rotate: [0, -7, 12, 20],
@@ -119,15 +115,19 @@ export function FlyToCartProvider({ children }) {
           />
         ))}
       </AnimatePresence>
+      <CartBounceEffect key={cartBounce} />
     </FlyToCartContext.Provider>
   );
 }
 
-function bounceCartTarget(target) {
+function CartBounceEffect() {
+  const target = document.querySelector("[data-cart-target]");
+  if (!target) return null;
   target.classList.remove("cart-target-bounce");
   void target.offsetWidth;
   target.classList.add("cart-target-bounce");
   window.setTimeout(() => target.classList.remove("cart-target-bounce"), 360);
+  return null;
 }
 
 export function useFlyToCart() {
