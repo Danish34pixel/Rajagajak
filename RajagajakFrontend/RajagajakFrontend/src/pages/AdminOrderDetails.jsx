@@ -112,9 +112,21 @@ export default function AdminOrderDetails() {
             <p>
               {order.shippingAddress.name} · {order.shippingAddress.mobile}
               <br />
-              {order.shippingAddress.address}, {order.shippingAddress.city},{" "}
-              {order.shippingAddress.state} - {order.shippingAddress.pincode}
+              {order.shippingAddress.address}
+              {order.shippingAddress.area
+                ? `, ${order.shippingAddress.area}`
+                : ""}
+              , {order.shippingAddress.city}, {order.shippingAddress.state} -{" "}
+              {order.shippingAddress.pincode}
             </p>
+            {order.shipping && (
+              <p>
+                Delivery Distance:{" "}
+                {Number(order.shipping.distanceKm).toFixed(3)} KM
+                <br />
+                Shipping Charge: {money(order.pricing.shippingCharges)}
+              </p>
+            )}
           </div>
           <aside className="checkout-card checkout-summary">
             <h2>Price details</h2>
@@ -126,14 +138,39 @@ export default function AdminOrderDetails() {
               <span>Discount</span>
               <strong>-{money(order.pricing.discount)}</strong>
             </div>
+            {order.coupon?.code && (
+              <>
+                <div>
+                  <span>Coupon ({order.coupon.code})</span>
+                  <strong>-{money(order.coupon.discount)}</strong>
+                </div>
+                {order.coupon.shippingDiscount > 0 && (
+                  <div>
+                    <span>Shipping discount</span>
+                    <strong>-{money(order.coupon.shippingDiscount)}</strong>
+                  </div>
+                )}
+              </>
+            )}
             <div>
               <span>GST</span>
               <strong>{money(order.pricing.totalGST)}</strong>
             </div>
             <div>
               <span>Shipping</span>
-              <strong>{money(order.pricing.shippingCharges)}</strong>
+              <strong>
+                {money(
+                  order.pricing.shippingCharges ??
+                    order.shipping?.shippingCharge,
+                )}
+              </strong>
             </div>
+            {order.coupon?.shippingDiscount > 0 && (
+              <div>
+                <span>Original shipping</span>
+                <strong>{money(order.coupon.originalShipping)}</strong>
+              </div>
+            )}
             <hr />
             <div className="grand-total">
               <span>Grand total</span>

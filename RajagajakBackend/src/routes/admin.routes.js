@@ -13,6 +13,7 @@ router.get("/products/:id", products.getProduct);
 router.put("/products/:id", products.updateProduct);
 router.delete("/products/:id", products.deleteProduct);
 router.get("/coupons", coupons.listCoupons);
+router.get("/coupon-users", coupons.listUsers);
 router.post("/coupons", coupons.createCoupon);
 router.get("/coupons/:id", coupons.getCoupon);
 router.put("/coupons/:id", coupons.updateCoupon);

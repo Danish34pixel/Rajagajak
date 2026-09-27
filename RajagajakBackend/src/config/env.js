@@ -27,6 +27,7 @@ const missingEnvironmentVariables = requiredEnvironmentVariables.filter(
 );
 
 const imageKitPrivateKey = getEnv("IMAGEKIT_PRIVATE_KEY");
+const googleMapsApiKey = getEnv("GOOGLE_MAPS_API_KEY");
 const invalidImageKitConfiguration =
   !/^private_/.test(imageKitPrivateKey) ||
   /your_imagekit|replace_with/i.test(imageKitPrivateKey);
@@ -54,6 +55,33 @@ const env = {
   imageKitPrivateKey,
   imageKitPublicKey: getEnv("IMAGEKIT_PUBLIC_KEY"),
   imageKitUrlEndpoint: getEnv("IMAGEKIT_URL_ENDPOINT"),
+  googleMapsApiKey,
+  geocodingProvider: getEnv(
+    "GEOCODING_PROVIDER",
+    googleMapsApiKey ? "google" : "nominatim",
+  ),
+  nominatimBaseUrl: getEnv(
+    "NOMINATIM_BASE_URL",
+    "https://nominatim.openstreetmap.org",
+  ).replace(/\/$/, ""),
+  geocodingUserAgent: getEnv("GEOCODING_USER_AGENT", "RajagajakStore/1.0"),
+  storeLocation: {
+    address: getEnv(
+      "STORE_ADDRESS",
+      "Shop No. 27, Peer Gate, Moti Masjid Road, Bhopal, Madhya Pradesh 462001, India",
+    ),
+    latitude: Number(getEnv("STORE_LATITUDE", "23.2556174")),
+    longitude: Number(getEnv("STORE_LONGITUDE", "77.3994281")),
+  },
+  shippingRates: {
+    baseDistanceKm: Number(getEnv("SHIPPING_BASE_DISTANCE_KM", "2")),
+    baseCharge: Number(getEnv("SHIPPING_BASE_CHARGE", "30")),
+    additionalDistanceKm: Number(
+      getEnv("SHIPPING_ADDITIONAL_DISTANCE_KM", "2"),
+    ),
+    additionalCharge: Number(getEnv("SHIPPING_ADDITIONAL_CHARGE", "20")),
+    maximumDistanceKm: Number(getEnv("MAX_DELIVERY_DISTANCE_KM", "20")),
+  },
   dnsServers: getEnv("DNS_SERVERS")
     .split(",")
     .map((server) => server.trim())

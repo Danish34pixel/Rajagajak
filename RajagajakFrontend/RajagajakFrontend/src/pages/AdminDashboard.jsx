@@ -5,6 +5,40 @@ import Navbar from "../components/Navbar.jsx";
 import * as api from "../services/api.js";
 import AdminOrderSection from "./AdminOrderSection.jsx";
 
+const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
+
+const emptyCoupon = () => ({
+  code: "",
+  title: "",
+  description: "",
+  type: "percentage",
+  discountType: "percentage",
+  discountValue: "",
+  minimumOrderValue: "0",
+  minimumQuantity: "0",
+  maximumDiscount: "",
+  buyQuantity: "",
+  getQuantity: "",
+  getDiscountPercentage: "",
+  getDiscountAmount: "",
+  applicableProducts: [],
+  applicableCategories: [],
+  eligibilityType: "everyone",
+  eligibleUsers: [],
+  cities: "",
+  pincodes: "",
+  radiusKm: "",
+  paymentMethods: [],
+  allowedDays: [],
+  usageLimit: "",
+  perUserLimit: "",
+  startDate: "",
+  expiryDate: "",
+  isActive: true,
+  campaignName: "",
+  campaignType: "standard",
+});
+
 export default function AdminDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -16,6 +50,7 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [couponUsers, setCouponUsers] = useState([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [product, setProduct] = useState({
@@ -28,33 +63,24 @@ export default function AdminDashboard() {
     stock: "0",
     category: "",
   });
-  const [coupon, setCoupon] = useState({
-    code: "",
-    title: "",
-    description: "",
-    discountType: "percentage",
-    discountValue: "",
-    minimumOrderValue: "0",
-    maximumDiscount: "",
-    startDate: "",
-    expiryDate: "",
-    isActive: true,
-  });
+  const [coupon, setCoupon] = useState(emptyCoupon);
   const [editing, setEditing] = useState(null);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
 
   const load = async () => {
     try {
-      const [productResponse, couponResponse, orderResponse] =
+      const [productResponse, couponResponse, orderResponse, userResponse] =
         await Promise.all([
           api.adminProducts(),
           api.adminCoupons(),
           api.adminOrders(),
+          api.adminCouponUsers(),
         ]);
       setProducts(productResponse.data);
       setCoupons(couponResponse.data);
       setOrders(orderResponse.data);
+      setCouponUsers(userResponse.data);
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -128,28 +154,50 @@ export default function AdminDashboard() {
     try {
       const payload = {
         ...coupon,
+        type: coupon.type,
         discountValue: Number(coupon.discountValue),
         minimumOrderValue: Number(coupon.minimumOrderValue),
         maximumDiscount:
           coupon.maximumDiscount === "" ? null : Number(coupon.maximumDiscount),
+        minimumQuantity: Number(coupon.minimumQuantity || 0),
+        buyQuantity:
+          coupon.buyQuantity === "" ? null : Number(coupon.buyQuantity),
+        getQuantity:
+          coupon.getQuantity === "" ? null : Number(coupon.getQuantity),
+        getDiscountPercentage:
+          coupon.getDiscountPercentage === ""
+            ? null
+            : Number(coupon.getDiscountPercentage),
+        getDiscountAmount:
+          coupon.getDiscountAmount === ""
+            ? null
+            : Number(coupon.getDiscountAmount),
+        usageLimit: coupon.usageLimit === "" ? null : Number(coupon.usageLimit),
+        perUserLimit:
+          coupon.perUserLimit === "" ? null : Number(coupon.perUserLimit),
+        radiusKm: coupon.radiusKm === "" ? null : Number(coupon.radiusKm),
+        cities:
+          typeof coupon.cities === "string"
+            ? coupon.cities
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean)
+            : coupon.cities,
+        pincodes:
+          typeof coupon.pincodes === "string"
+            ? coupon.pincodes
+                .split(",")
+                .map((value) => value.trim())
+                .filter(Boolean)
+            : coupon.pincodes,
       };
       if (editing) await api.updateCoupon(editing, payload);
       else await api.createCoupon(payload);
       setNotice(editing ? "Coupon updated" : "Coupon created");
       setEditing(null);
-      setCoupon({
-        code: "",
-        title: "",
-        description: "",
-        discountType: "percentage",
-        discountValue: "",
-        minimumOrderValue: "0",
-        maximumDiscount: "",
-        startDate: "",
-        expiryDate: "",
-        isActive: true,
-      });
+      setCoupon(emptyCoupon());
       await load();
+      navigate("/admin/coupons");
     } catch (requestError) {
       setError(requestError.message);
     }
@@ -186,12 +234,33 @@ export default function AdminDashboard() {
   const editCoupon = (item) => {
     setEditing(item._id);
     setCoupon({
+      ...emptyCoupon(),
       ...item,
-      startDate: item.startDate.slice(0, 16),
-      expiryDate: item.expiryDate.slice(0, 16),
+      type: item.type || item.discountType,
+      startDate: item.startDate?.slice(0, 16) || "",
+      expiryDate: item.expiryDate?.slice(0, 16) || "",
       maximumDiscount: item.maximumDiscount ?? "",
+      minimumQuantity: item.minimumQuantity ?? "0",
+      buyQuantity: item.buyQuantity ?? "",
+      getQuantity: item.getQuantity ?? "",
+      getDiscountPercentage: item.getDiscountPercentage ?? "",
+      getDiscountAmount: item.getDiscountAmount ?? "",
+      usageLimit: item.usageLimit ?? "",
+      perUserLimit: item.perUserLimit ?? "",
+      radiusKm: item.radiusKm ?? "",
+      cities: item.cities?.join(", ") || "",
+      pincodes: item.pincodes?.join(", ") || "",
     });
     navigate("/admin/coupons/edit");
+  };
+  const toggleCoupon = async (item) => {
+    try {
+      await api.updateCoupon(item._id, { ...item, isActive: !item.isActive });
+      setNotice(`Coupon ${item.isActive ? "deactivated" : "activated"}`);
+      await load();
+    } catch (requestError) {
+      setError(requestError.message);
+    }
   };
 
   return (
@@ -259,12 +328,18 @@ export default function AdminDashboard() {
           <CouponSection
             {...{
               coupons,
+              products,
+              couponUsers,
+              couponFormOpen:
+                location.pathname.endsWith("/create") ||
+                location.pathname.endsWith("/edit"),
               coupon,
               setCoupon,
               saveCoupon,
               editing,
               setEditing,
               editCoupon,
+              toggleCoupon,
               remove,
             }}
           />
@@ -540,14 +615,106 @@ function ProductSection({
 
 function CouponSection({
   coupons,
+  products,
+  couponUsers,
+  couponFormOpen,
   coupon,
   setCoupon,
   saveCoupon,
   editing,
   setEditing,
   editCoupon,
+  toggleCoupon,
   remove,
 }) {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [expandedCoupon, setExpandedCoupon] = useState(null);
+  const [couponAnalytics, setCouponAnalytics] = useState({});
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerOptions, setCustomerOptions] = useState(couponUsers);
+  const categories = [
+    ...new Set(products.map((item) => item.category).filter(Boolean)),
+  ];
+  const filteredCoupons = coupons.filter((item) => {
+    const type = item.type || item.discountType;
+    return (
+      (!search ||
+        `${item.code} ${item.title}`
+          .toLowerCase()
+          .includes(search.toLowerCase())) &&
+      (statusFilter === "all" || item.status === statusFilter) &&
+      (typeFilter === "all" || type === typeFilter)
+    );
+  });
+  const update = (field, value) =>
+    setCoupon((current) => ({ ...current, [field]: value }));
+  const updateSelected = (field, event, convert = (value) => value) =>
+    update(
+      field,
+      [...event.currentTarget.selectedOptions].map((option) =>
+        convert(option.value),
+      ),
+    );
+  useEffect(() => {
+    if (coupon.eligibilityType !== "specific_users") return undefined;
+    let active = true;
+    const timer = setTimeout(() => {
+      api
+        .adminCouponUsers(customerSearch)
+        .then((response) => {
+          if (active) setCustomerOptions(response.data);
+        })
+        .catch(() => {
+          if (active) setCustomerOptions([]);
+        });
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [coupon.eligibilityType, customerSearch]);
+  const couponTypes = [
+    ["percentage", "Percentage discount"],
+    ["fixed", "Fixed amount discount"],
+    ["free_shipping", "Free shipping"],
+    ["fixed_shipping", "Fixed shipping"],
+    ["buy_x_get_y", "Buy X get Y free"],
+    ["buy_x_get_percentage", "Buy X get percentage off"],
+    ["buy_x_get_fixed", "Buy X get fixed amount off"],
+  ];
+  const typeLabels = Object.fromEntries(couponTypes);
+  const discountLabel = (item) => {
+    const type = item.type || item.discountType;
+    if (type === "free_shipping") return "Free shipping";
+    if (type === "fixed_shipping")
+      return `Shipping ${money(item.discountValue)}`;
+    if (type === "buy_x_get_y")
+      return `Buy ${item.buyQuantity} get ${item.getQuantity}`;
+    if (type === "buy_x_get_percentage")
+      return `${item.getDiscountPercentage}% on get quantity`;
+    if (type === "buy_x_get_fixed")
+      return `${money(item.getDiscountAmount)} on get quantity`;
+    return `${type === "percentage" ? `${item.discountValue}%` : money(item.discountValue)} off`;
+  };
+  const showCouponDetails = async (item) => {
+    if (expandedCoupon === item._id) {
+      setExpandedCoupon(null);
+      return;
+    }
+    setExpandedCoupon(item._id);
+    try {
+      const response = await api.adminCoupon(item._id);
+      setCouponAnalytics((current) => ({
+        ...current,
+        [item._id]: response.data,
+      }));
+    } catch {
+      setCouponAnalytics((current) => ({ ...current, [item._id]: item }));
+    }
+  };
   return (
     <section className="admin-section">
       <div className="section-heading">
@@ -562,118 +729,421 @@ function CouponSection({
           <Plus size={17} /> Create coupon
         </Link>
       </div>
-      <form className="admin-form" onSubmit={saveCoupon}>
-        <div className="admin-grid">
-          <input
-            required
-            placeholder="Code e.g. SAVE20"
-            value={coupon.code}
-            onChange={(e) =>
-              setCoupon({ ...coupon, code: e.target.value.toUpperCase() })
-            }
+      {couponFormOpen && (
+        <form className="admin-form" onSubmit={saveCoupon}>
+          <div className="admin-grid">
+            <input
+              required
+              placeholder="Code e.g. SAVE20"
+              value={coupon.code}
+              onChange={(e) => update("code", e.target.value.toUpperCase())}
+            />
+            <input
+              required
+              placeholder="Coupon title"
+              value={coupon.title}
+              onChange={(e) => update("title", e.target.value)}
+            />
+            <select
+              value={coupon.type}
+              onChange={(e) => update("type", e.target.value)}
+            >
+              {couponTypes.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {coupon.type !== "free_shipping" &&
+              !coupon.type.startsWith("buy_x_get_") && (
+                <input
+                  required
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder={
+                    coupon.type === "percentage"
+                      ? "Discount %"
+                      : "Discount value"
+                  }
+                  value={coupon.discountValue}
+                  onChange={(e) => update("discountValue", e.target.value)}
+                />
+              )}
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Minimum order"
+              value={coupon.minimumOrderValue}
+              onChange={(e) => update("minimumOrderValue", e.target.value)}
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.001"
+              placeholder="Minimum quantity (KG)"
+              value={coupon.minimumQuantity}
+              onChange={(e) => update("minimumQuantity", e.target.value)}
+            />
+            {(coupon.type === "percentage" ||
+              coupon.type === "buy_x_get_percentage") && (
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Maximum discount"
+                value={coupon.maximumDiscount}
+                onChange={(e) => update("maximumDiscount", e.target.value)}
+              />
+            )}
+            {coupon.type.startsWith("buy_x_get_") && (
+              <>
+                <input
+                  required
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  placeholder="Buy quantity (KG)"
+                  value={coupon.buyQuantity}
+                  onChange={(e) => update("buyQuantity", e.target.value)}
+                />
+                <input
+                  required
+                  type="number"
+                  min="0.001"
+                  step="0.001"
+                  placeholder="Get quantity (KG)"
+                  value={coupon.getQuantity}
+                  onChange={(e) => update("getQuantity", e.target.value)}
+                />
+                {coupon.type === "buy_x_get_percentage" && (
+                  <input
+                    required
+                    type="number"
+                    min="0.01"
+                    max="100"
+                    placeholder="Get discount %"
+                    value={coupon.getDiscountPercentage}
+                    onChange={(e) =>
+                      update("getDiscountPercentage", e.target.value)
+                    }
+                  />
+                )}
+                {coupon.type === "buy_x_get_fixed" && (
+                  <input
+                    required
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="Get discount amount"
+                    value={coupon.getDiscountAmount}
+                    onChange={(e) =>
+                      update("getDiscountAmount", e.target.value)
+                    }
+                  />
+                )}
+              </>
+            )}
+            <input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Total usage limit (blank = unlimited)"
+              value={coupon.usageLimit}
+              onChange={(e) => update("usageLimit", e.target.value)}
+            />
+            <input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Uses per customer (blank = unlimited)"
+              value={coupon.perUserLimit}
+              onChange={(e) => update("perUserLimit", e.target.value)}
+            />
+            <input
+              required
+              type="datetime-local"
+              value={coupon.startDate}
+              onChange={(e) => update("startDate", e.target.value)}
+            />
+            <input
+              required
+              type="datetime-local"
+              value={coupon.expiryDate}
+              onChange={(e) => update("expiryDate", e.target.value)}
+            />
+          </div>
+          <textarea
+            placeholder="Description"
+            value={coupon.description}
+            onChange={(e) => update("description", e.target.value)}
           />
-          <input
-            required
-            placeholder="Coupon title"
-            value={coupon.title}
-            onChange={(e) => setCoupon({ ...coupon, title: e.target.value })}
-          />
-          <select
-            value={coupon.discountType}
-            onChange={(e) =>
-              setCoupon({ ...coupon, discountType: e.target.value })
-            }
-          >
-            <option value="percentage">Percentage</option>
-            <option value="fixed">Fixed amount</option>
-          </select>
-          <input
-            required
-            type="number"
-            min="0"
-            placeholder="Discount value"
-            value={coupon.discountValue}
-            onChange={(e) =>
-              setCoupon({ ...coupon, discountValue: e.target.value })
-            }
-          />
-          <input
-            type="number"
-            min="0"
-            placeholder="Minimum order"
-            value={coupon.minimumOrderValue}
-            onChange={(e) =>
-              setCoupon({ ...coupon, minimumOrderValue: e.target.value })
-            }
-          />
-          <input
-            type="number"
-            min="0"
-            placeholder="Maximum discount"
-            value={coupon.maximumDiscount}
-            onChange={(e) =>
-              setCoupon({ ...coupon, maximumDiscount: e.target.value })
-            }
-          />
-          <input
-            required
-            type="datetime-local"
-            value={coupon.startDate}
-            onChange={(e) =>
-              setCoupon({ ...coupon, startDate: e.target.value })
-            }
-          />
-          <input
-            required
-            type="datetime-local"
-            value={coupon.expiryDate}
-            onChange={(e) =>
-              setCoupon({ ...coupon, expiryDate: e.target.value })
-            }
-          />
-        </div>
-        <textarea
-          placeholder="Description"
-          value={coupon.description}
-          onChange={(e) =>
-            setCoupon({ ...coupon, description: e.target.value })
-          }
-        />
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={coupon.isActive}
-            onChange={(e) =>
-              setCoupon({ ...coupon, isActive: e.target.checked })
-            }
-          />{" "}
-          Active
-        </label>
-        <div className="form-actions">
-          <button className="primary-button" type="submit">
-            {editing ? "Update coupon" : "Save coupon"}
-          </button>
-          {editing && (
-            <button type="button" onClick={() => setEditing(null)}>
-              Cancel
+          <div className="admin-grid coupon-rule-grid">
+            <label>
+              Customer eligibility
+              <select
+                value={coupon.eligibilityType}
+                onChange={(e) => update("eligibilityType", e.target.value)}
+              >
+                <option value="everyone">Everyone</option>
+                <option value="first_order">First order only</option>
+                <option value="returning">Returning customers</option>
+                <option value="specific_users">Specific customers</option>
+                <option value="referral">Referral (not enabled)</option>
+                <option value="cart_abandonment">
+                  Cart abandonment (not enabled)
+                </option>
+                <option value="reorder">Reorder (not enabled)</option>
+                <option value="loyalty">Loyalty (not enabled)</option>
+                <option value="birthday">Birthday (not enabled)</option>
+                <option value="review_reward">
+                  Review reward (not enabled)
+                </option>
+              </select>
+            </label>
+            {coupon.eligibilityType === "specific_users" && (
+              <label>
+                Eligible customers (Ctrl/Cmd-click to select)
+                <input
+                  placeholder="Search name, email, or mobile"
+                  value={customerSearch}
+                  onChange={(event) => setCustomerSearch(event.target.value)}
+                />
+                <select
+                  multiple
+                  size="4"
+                  value={coupon.eligibleUsers.map(String)}
+                  onChange={(e) => updateSelected("eligibleUsers", e)}
+                >
+                  {customerOptions.map((user) => (
+                    <option key={user._id} value={user._id}>
+                      {user.name} · {user.email} · {user.mobile}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label>
+              Eligible products (none = all)
+              <select
+                multiple
+                size="4"
+                value={coupon.applicableProducts.map(String)}
+                onChange={(e) => updateSelected("applicableProducts", e)}
+              >
+                {products.map((item) => (
+                  <option key={item._id} value={item._id}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Eligible categories (none = all)
+              <select
+                multiple
+                size="4"
+                value={coupon.applicableCategories}
+                onChange={(e) => updateSelected("applicableCategories", e)}
+              >
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <input
+              placeholder="Cities, comma separated"
+              value={coupon.cities}
+              onChange={(e) => update("cities", e.target.value)}
+            />
+            <input
+              placeholder="Pincodes, comma separated"
+              value={coupon.pincodes}
+              onChange={(e) => update("pincodes", e.target.value)}
+            />
+            <input
+              type="number"
+              min="0.1"
+              step="0.1"
+              placeholder="Maximum delivery radius (KM)"
+              value={coupon.radiusKm}
+              onChange={(e) => update("radiusKm", e.target.value)}
+            />
+            <label>
+              Payment methods (none = all)
+              <select
+                multiple
+                size="4"
+                value={coupon.paymentMethods}
+                onChange={(e) => updateSelected("paymentMethods", e)}
+              >
+                <option value="cod">Cash on delivery</option>
+                <option value="online">Online</option>
+                <option value="upi">UPI</option>
+                <option value="razorpay">Razorpay</option>
+                <option value="stripe">Stripe</option>
+              </select>
+            </label>
+            <label>
+              Allowed days (none = every day)
+              <select
+                multiple
+                size="4"
+                value={coupon.allowedDays.map(String)}
+                onChange={(e) => updateSelected("allowedDays", e, Number)}
+              >
+                {[
+                  "Sunday",
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                ].map((day, index) => (
+                  <option key={day} value={index}>
+                    {day}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <input
+              placeholder="Campaign name"
+              value={coupon.campaignName}
+              onChange={(e) => update("campaignName", e.target.value)}
+            />
+            <input
+              placeholder="Campaign type"
+              value={coupon.campaignType}
+              onChange={(e) => update("campaignType", e.target.value)}
+            />
+          </div>
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={coupon.isActive}
+              onChange={(e) =>
+                setCoupon({ ...coupon, isActive: e.target.checked })
+              }
+            />{" "}
+            Active
+          </label>
+          <div className="form-actions">
+            <button className="primary-button" type="submit">
+              {editing ? "Update coupon" : "Save coupon"}
             </button>
-          )}
-        </div>
-      </form>
+            {editing && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(null);
+                  setCoupon(emptyCoupon());
+                  navigate("/admin/coupons");
+                }}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+      <div className="coupon-admin-filters">
+        <input
+          aria-label="Search coupons"
+          placeholder="Search code or name"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        <select
+          aria-label="Filter coupon status"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
+          <option value="all">All statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="DISABLED">Disabled</option>
+          <option value="UPCOMING">Upcoming</option>
+          <option value="EXPIRED">Expired</option>
+        </select>
+        <select
+          aria-label="Filter coupon type"
+          value={typeFilter}
+          onChange={(event) => setTypeFilter(event.target.value)}
+        >
+          <option value="all">All types</option>
+          {couponTypes.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="admin-list">
-        {coupons.map((item) => (
+        {filteredCoupons.map((item) => (
           <article className="admin-row" key={item._id}>
             <div>
               <strong>
                 {item.code} · {item.title}
               </strong>
               <span>
-                {item.discountValue}
-                {item.discountType === "percentage" ? "%" : "₹"} off ·{" "}
-                {item.status}
+                {typeLabels[item.type || item.discountType] || item.type} ·{" "}
+                {discountLabel(item)} · Min {money(item.minimumOrderValue)}
               </span>
+              <span>
+                Usage {item.usedCount || 0}/{item.usageLimit ?? "Unlimited"} ·{" "}
+                {new Date(item.startDate).toLocaleDateString()} –{" "}
+                {new Date(item.expiryDate).toLocaleDateString()} · {item.status}
+              </span>
+              {expandedCoupon === item._id && (
+                <span className="coupon-analytics">
+                  {item.description || "No description"} · Remaining:{" "}
+                  {item.usageRemaining ?? "Unlimited"} · Campaign:{" "}
+                  {item.campaignName || "Standard"}
+                  {couponAnalytics[item._id]?.analytics && (
+                    <>
+                      {" "}
+                      · Successful:{" "}
+                      {couponAnalytics[item._id].analytics.successfulUses} ·
+                      Discount given:{" "}
+                      {money(couponAnalytics[item._id].analytics.totalDiscount)}{" "}
+                      · Shipping discount:{" "}
+                      {money(
+                        couponAnalytics[item._id].analytics
+                          .totalShippingDiscount,
+                      )}{" "}
+                      · Revenue:{" "}
+                      {money(couponAnalytics[item._id].analytics.revenue)} ·
+                      Average order:{" "}
+                      {money(
+                        couponAnalytics[item._id].analytics.averageOrderValue,
+                      )}{" "}
+                      · Last used:{" "}
+                      {couponAnalytics[item._id].analytics.lastUsed
+                        ? new Date(
+                            couponAnalytics[item._id].analytics.lastUsed,
+                          ).toLocaleDateString()
+                        : "Never"}
+                    </>
+                  )}
+                </span>
+              )}
             </div>
             <div className="row-actions">
+              <button
+                title="View coupon details"
+                onClick={() => showCouponDetails(item)}
+              >
+                <BarChart3 size={16} />
+              </button>
+              <button
+                title={item.isActive ? "Deactivate" : "Activate"}
+                onClick={() => toggleCoupon(item)}
+              >
+                <span>{item.isActive ? "On" : "Off"}</span>
+              </button>
               <button title="Edit" onClick={() => editCoupon(item)}>
                 <Pencil size={16} />
               </button>
