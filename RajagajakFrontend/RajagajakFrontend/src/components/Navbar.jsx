@@ -1,4 +1,4 @@
-import { Search, ShoppingBag, UserRound, X } from "lucide-react";
+import { ClipboardList, Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { useCart } from "../context/useCart.js";
@@ -184,6 +184,15 @@ export default function Navbar({ admin = false }) {
         </button>
 
         <div className="nav-user">
+          <Link
+            className="profile-link orders-link"
+            to={admin ? "/admin/orders" : "/orders"}
+            aria-label={admin ? "Admin orders" : "My orders"}
+            title={admin ? "Admin orders" : "My orders"}
+          >
+            <ClipboardList size={16} aria-hidden="true" />
+            <span>My Orders</span>
+          </Link>
           <Link
             className="profile-link"
             to="/profile"

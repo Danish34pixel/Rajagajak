@@ -12,6 +12,7 @@ import OrderSuccess from "./pages/OrderSuccess.jsx";
 import AdminOrderDetails from "./pages/AdminOrderDetails.jsx";
 import Profile from "./pages/Profile.jsx";
 import ProtectedRoute, { AdminRoute } from "./components/ProtectedRoute.jsx";
+import OrderStatusNotification from "./components/OrderStatusNotification.jsx";
 import { FlyToCartProvider } from "./components/FlyToCart.jsx";
 import "./App.css";
 
@@ -19,6 +20,7 @@ function App() {
   return (
     <BrowserRouter>
       <FlyToCartProvider>
+        <OrderStatusNotification />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />

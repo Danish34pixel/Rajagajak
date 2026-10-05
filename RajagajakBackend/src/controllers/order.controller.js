@@ -5,6 +5,7 @@ const Product = require("../models/Product.model");
 const User = require("../models/User.model");
 const Coupon = require("../models/Coupon.model");
 const CouponRedemption = require("../models/CouponRedemption.model");
+const OrderStatusNotification = require("../models/OrderStatusNotification.model");
 const asyncHandler = require("../utils/asyncHandler");
 const { errorResponse, successResponse } = require("../utils/response");
 const {
@@ -539,6 +540,12 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     return errorResponse(res, "Invalid order status transition", 400);
   order.orderStatus = req.body.status;
   await order.save();
+  await OrderStatusNotification.create({
+    userId: order.userId,
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    status: order.orderStatus,
+  });
   return successResponse(res, order, "Order status updated");
 });
 const cancelAdminOrder = asyncHandler(async (req, res) => {
@@ -561,6 +568,12 @@ const cancelAdminOrder = asyncHandler(async (req, res) => {
   );
   if (!cancelled)
     return errorResponse(res, "This order has already changed status.", 409);
+  await OrderStatusNotification.create({
+    userId: cancelled.userId,
+    orderId: cancelled._id,
+    orderNumber: cancelled.orderNumber,
+    status: cancelled.orderStatus,
+  });
   for (const item of order.items)
     await Product.updateOne(
       { _id: item.productId },
