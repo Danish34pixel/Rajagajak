@@ -149,3 +149,6 @@ export const cancelAdminOrder = (id, reason) =>
     method: "PATCH",
     body: JSON.stringify({ reason }),
   });
+export const orderStatusNotifications = () => request("/notifications");
+export const markOrderStatusNotificationRead = (id) =>
+  request(`/notifications/${id}/read`, { method: "PATCH" });

@@ -875,7 +875,7 @@
     margin-left: auto;
     gap: 6px;
   }
-  .profile-link,
+  .profile-link:not(.orders-link),
   .bag-link {
     display: none;
   }
@@ -3160,7 +3160,80 @@ fieldset.checkout-fields {
 .profile-page > .success-note {
   margin-top: 18px;
 }
+.order-status-notice {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 60;
+  display: grid;
+  gap: 14px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px;
+  color: var(--ink);
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--green);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+.order-status-notice-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.order-status-notice-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--green);
+  background: var(--lime);
+  border-radius: 50%;
+}
+.order-status-notice-heading > div {
+  display: grid;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+.order-status-notice-heading > div span,
+.order-status-notice p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.order-status-notice p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.order-status-notice-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.order-status-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.order-status-notice-actions .primary-action,
+.order-status-notice-actions .outline-action {
+  min-height: 38px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
 @media (max-width: 620px) {
+  .order-status-notice {
+    right: 12px;
+    bottom: 12px;
+  }
   .profile-page {
     width: min(100% - 32px, 860px);
     padding-top: 28px;
@@ -3204,6 +3277,16 @@ fieldset.checkout-fields {
   .navbar .bag-link span,
   .navbar .profile-link {
     font-size: 0;
+  }
+  .navbar .orders-link {
+    display: inline-flex;
+    width: 38px;
+    min-height: 38px;
+    justify-content: center;
+    padding: 0;
+  }
+  .navbar .orders-link span {
+    display: none;
   }
   .navbar .bag-link,
   .navbar .profile-link,

@@ -7,6 +7,7 @@ const couponRoutes = require("./coupon.routes");
 const productRoutes = require("./product.routes");
 const orderRoutes = require("./order.routes");
 const deliveryRoutes = require("./delivery.routes");
+const notificationRoutes = require("./notification.routes");
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.use("/coupons", couponRoutes);
 router.use("/products", productRoutes);
 router.use("/delivery", deliveryRoutes);
 router.use("/orders", orderRoutes);
+router.use("/notifications", notificationRoutes);
 
 module.exports = router;
