@@ -33,7 +33,12 @@ export default function Login() {
   };
 
   if (user)
-    return <Navigate to={isAdmin(user) ? "/admin" : "/dashboard"} replace />;
+    return (
+      <Navigate
+        to={isAdmin(user) ? "/admin" : getPostLoginPath() || "/dashboard"}
+        replace
+      />
+    );
 
   const triggerShake = () => {
     setShake(true);
@@ -138,7 +143,10 @@ export default function Login() {
         </button>
 
         <p className="form-foot field--stagger" style={{ "--delay": "200ms" }}>
-          New to Raja Gajak? <Link to="/signup">Create an account</Link>
+          New to Raja Gajak?{" "}
+          <Link to="/signup" state={location.state}>
+            Create an account
+          </Link>
         </p>
       </form>
     </AuthLayout>

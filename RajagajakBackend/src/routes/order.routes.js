@@ -3,9 +3,9 @@ const { authenticate } = require("../middleware/auth.middleware");
 const orders = require("../controllers/order.controller");
 
 const router = express.Router();
-router.use(authenticate);
 router.post("/quote", orders.quoteOrder);
 router.post("/shipping-quote", orders.quoteShipping);
+router.use(authenticate);
 router.post("/", orders.createOrder);
 router.get("/my-orders", orders.listMyOrders);
 router.get("/:id", orders.getMyOrder);

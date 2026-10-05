@@ -344,11 +344,13 @@ const activeCoupons = asyncHandler(async (req, res) => {
   })
     .populate("applicableProducts", "title category")
     .sort({ expiryDate: 1 });
-  const userId = req.user.sub;
-  const [userOrderCount, redemptions] = await Promise.all([
-    Order.countDocuments({ userId, orderStatus: { $ne: "cancelled" } }),
-    CouponRedemption.find({ userId }),
-  ]);
+  const userId = req.user?.sub;
+  const [userOrderCount, redemptions] = userId
+    ? await Promise.all([
+        Order.countDocuments({ userId, orderStatus: { $ne: "cancelled" } }),
+        CouponRedemption.find({ userId }),
+      ])
+    : [0, []];
   const redemptionCounts = new Map(
     redemptions.map((redemption) => [
       String(redemption.couponId),
@@ -420,11 +422,23 @@ const applyCoupon = asyncHandler(async (req, res) => {
       customerLocation: req.body.customerLocation,
       shippingAddress: delivery,
     });
-    const userId = req.user.sub;
-    const [userOrderCount, redemption] = await Promise.all([
-      Order.countDocuments({ userId, orderStatus: { $ne: "cancelled" } }),
-      CouponRedemption.findOne({ couponId: coupon._id, userId }),
-    ]);
+    const userId = req.user?.sub;
+    const accountBoundCoupon =
+      (coupon.eligibilityType || "everyone") !== "everyone" ||
+      Boolean(coupon.eligibleUsers?.length) ||
+      coupon.perUserLimit != null;
+    if (!userId && accountBoundCoupon)
+      return errorResponse(
+        res,
+        "Sign in to check this coupon's eligibility.",
+        401,
+      );
+    const [userOrderCount, redemption] = userId
+      ? await Promise.all([
+          Order.countDocuments({ userId, orderStatus: { $ne: "cancelled" } }),
+          CouponRedemption.findOne({ couponId: coupon._id, userId }),
+        ])
+      : [0, null];
     const result = evaluateCoupon({
       coupon,
       items,

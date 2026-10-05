@@ -35,10 +35,19 @@ const normalizeAddress = (address = {}) => ({
   name: String(address.name || "").trim(),
   mobile: String(address.mobile || "").trim(),
   address: String(address.address || address.houseShop || "").trim(),
+  fullAddress: String(address.fullAddress || "").trim(),
+  building: String(address.building || "").trim(),
+  houseNumber: String(address.houseNumber || "").trim(),
+  road: String(address.road || "").trim(),
+  locality: String(address.locality || "").trim(),
+  district: String(address.district || "").trim(),
   area: String(address.area || "").trim(),
   city: String(address.city || "").trim(),
   state: String(address.state || "").trim(),
   pincode: String(address.pincode || address.pinCode || "").trim(),
+  country: String(address.country || "").trim(),
+  locationDetected: Boolean(address.locationDetected),
+  locationSource: address.locationSource === "gps" ? "gps" : "manual",
 });
 
 const deliveryErrorMessage = (error) => {
@@ -47,6 +56,11 @@ const deliveryErrorMessage = (error) => {
     return error.message;
   if (error.message === "A complete delivery address is required.")
     return "Please enter a valid delivery address.";
+  if (
+    error.message ===
+    "We couldn't get a readable address for your current location."
+  )
+    return error.message;
   return "We couldn't calculate delivery charges. Please try again or enter your delivery address.";
 };
 
@@ -172,13 +186,15 @@ const createOrder = asyncHandler(async (req, res) => {
   });
   if (existing) return successResponse(res, existing, "Order already created");
   const shippingAddress = normalizeAddress(req.body.shippingAddress);
+  const hasCustomerLocation = Boolean(req.body.customerLocation);
   if (
     !shippingAddress.name ||
     !/^[6-9]\d{9}$/.test(shippingAddress.mobile) ||
-    !shippingAddress.address ||
-    !shippingAddress.city ||
-    !shippingAddress.state ||
-    !/^\d{6}$/.test(shippingAddress.pincode)
+    (!hasCustomerLocation &&
+      (!shippingAddress.address ||
+        !shippingAddress.city ||
+        !shippingAddress.state ||
+        !/^\d{6}$/.test(shippingAddress.pincode)))
   )
     return errorResponse(
       res,
@@ -191,6 +207,38 @@ const createOrder = asyncHandler(async (req, res) => {
       customerLocation: req.body.customerLocation,
       shippingAddress,
     });
+    if (hasCustomerLocation) {
+      const location = shipping.location;
+      Object.assign(shippingAddress, {
+        address: shipping.fullAddress,
+        fullAddress: shipping.fullAddress,
+        building: location.building,
+        houseNumber: location.houseNumber,
+        road: location.road,
+        locality: location.locality,
+        district: location.district,
+        area: location.area,
+        city: location.city,
+        state: location.state,
+        pincode: location.pincode,
+        country: location.country,
+        locationDetected: true,
+        locationSource: "gps",
+      });
+    } else {
+      shippingAddress.fullAddress = [
+        shippingAddress.address,
+        shippingAddress.area,
+        shippingAddress.city,
+        [shippingAddress.state, shippingAddress.pincode]
+          .filter(Boolean)
+          .join(" - "),
+      ]
+        .filter(Boolean)
+        .join(", ");
+      shippingAddress.locationDetected = false;
+      shippingAddress.locationSource = "manual";
+    }
     shippingAddress.latitude = shipping.destination.latitude;
     shippingAddress.longitude = shipping.destination.longitude;
   } catch (error) {

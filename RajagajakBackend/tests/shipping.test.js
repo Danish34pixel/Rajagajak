@@ -46,6 +46,79 @@ test("Haversine distance is zero for the same coordinates", () => {
   assert.equal(calculateHaversineDistance(point, point), 0);
 });
 
+test("GPS shipping uses customer coordinates and returns a readable address", async () => {
+  const originalFetch = global.fetch;
+  const customerLocation = { latitude: 23.2599, longitude: 77.4126 };
+  global.fetch = async (url) => {
+    const requestedUrl = new URL(url);
+    assert.equal(requestedUrl.pathname, "/reverse");
+    assert.equal(requestedUrl.searchParams.get("lat"), "23.2599");
+    assert.equal(requestedUrl.searchParams.get("lon"), "77.4126");
+    return {
+      ok: true,
+      json: async () => ({
+        address: {
+          house_number: "27",
+          road: "Moti Masjid Road",
+          neighbourhood: "Peer Gate",
+          suburb: "Old Bhopal",
+          city: "Bhopal",
+          state: "Madhya Pradesh",
+          postcode: "462001",
+          country: "India",
+        },
+      }),
+    };
+  };
+
+  try {
+    const result = await calculateDelivery({ customerLocation });
+    assert.deepEqual(result.destination, customerLocation);
+    assert.equal(result.location.houseNumber, "27");
+    assert.equal(result.location.road, "Moti Masjid Road");
+    assert.equal(result.location.city, "Bhopal");
+    assert.equal(result.location.state, "Madhya Pradesh");
+    assert.equal(result.location.pincode, "462001");
+    assert.equal(
+      result.fullAddress,
+      "27, Moti Masjid Road, Peer Gate, Old Bhopal, Bhopal, Madhya Pradesh - 462001, India",
+    );
+    assert.equal(result.locationDetected, true);
+    assert.equal(
+      result.distanceKm,
+      Number(
+        calculateHaversineDistance(env.storeLocation, customerLocation).toFixed(
+          3,
+        ),
+      ),
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("GPS shipping fails when reverse geocoding cannot provide a complete address", async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ address: {} }),
+  });
+
+  try {
+    await assert.rejects(
+      calculateDelivery({
+        customerLocation: { latitude: 23.2599, longitude: 77.4126 },
+      }),
+      {
+        message:
+          "We couldn't get a readable address for your current location.",
+      },
+    );
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test("maximum delivery distance allows the boundary and rejects farther locations", () => {
   assert.doesNotThrow(() => assertWithinDeliveryDistance(20, 20));
   assert.throws(() => assertWithinDeliveryDistance(20.001, 20), {

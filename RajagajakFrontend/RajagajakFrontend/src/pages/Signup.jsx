@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth.js";
 import Loader from "../components/Loader.jsx";
 import "../auth-liquid.css";
@@ -16,7 +16,8 @@ const initialForm = {
 };
 
 export default function Signup() {
-  const { signUp } = useAuth();
+  const { signUp, signIn } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [error, setError] = useState("");
@@ -52,10 +53,25 @@ export default function Signup() {
         pinCode: form.pinCode,
         password: form.password,
       });
-      navigate("/login", {
-        replace: true,
-        state: { message: "Account created. You can sign in now." },
-      });
+      if (location.state?.from?.pathname !== "/checkout") {
+        navigate("/login", {
+          replace: true,
+          state: { message: "Account created. You can sign in now." },
+        });
+        return;
+      }
+      try {
+        await signIn({ email: form.email, password: form.password });
+        navigate("/checkout", { replace: true });
+      } catch {
+        navigate("/login", {
+          replace: true,
+          state: {
+            ...location.state,
+            message: "Account created. Please sign in to continue.",
+          },
+        });
+      }
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -205,7 +221,10 @@ export default function Signup() {
               className="form-foot field--stagger"
               style={{ "--delay": "360ms" }}
             >
-              Already have an account? <Link to="/login">Sign in</Link>
+              Already have an account?{" "}
+              <Link to="/login" state={location.state}>
+                Sign in
+              </Link>
             </p>
           </form>
         </div>
