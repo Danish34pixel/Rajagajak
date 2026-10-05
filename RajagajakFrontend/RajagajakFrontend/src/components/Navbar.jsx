@@ -194,7 +194,7 @@ export default function Navbar({ admin = false }) {
             <span>My Orders</span>
           </Link>
           <Link
-            className="profile-link"
+            className="profile-link profile-nav-link"
             to="/profile"
             aria-label="View profile"
           >

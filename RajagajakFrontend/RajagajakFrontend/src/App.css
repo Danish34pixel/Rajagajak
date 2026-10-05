@@ -875,7 +875,7 @@
     margin-left: auto;
     gap: 6px;
   }
-  .profile-link:not(.orders-link),
+  .profile-link:not(.orders-link):not(.profile-nav-link),
   .bag-link {
     display: none;
   }
@@ -2088,6 +2088,11 @@ fieldset.checkout-fields {
   border-radius: 7px;
   font-weight: 700;
 }
+.admin-order-row .row-actions button.admin-order-status-action {
+  color: var(--color-white);
+  background: var(--green);
+  border-color: var(--green);
+}
 .order-admin-stats {
   display: flex;
   flex-wrap: wrap;
@@ -3279,6 +3284,13 @@ fieldset.checkout-fields {
     font-size: 0;
   }
   .navbar .orders-link {
+    display: inline-flex;
+    width: 38px;
+    min-height: 38px;
+    justify-content: center;
+    padding: 0;
+  }
+  .navbar .profile-nav-link {
     display: inline-flex;
     width: 38px;
     min-height: 38px;
