@@ -23,10 +23,21 @@ const deliveryAddressPayload = (address) => ({
   name: address.name,
   mobile: address.mobile,
   address: address.houseShop,
+  fullAddress: address.fullAddress || "",
+  building: address.building || "",
+  houseNumber: address.houseNumber || "",
+  road: address.road || "",
+  locality: address.locality || "",
+  district: address.district || "",
   area: address.area,
   city: address.city,
   state: address.state,
   pincode: address.pincode,
+  country: address.country || "",
+  latitude: address.latitude,
+  longitude: address.longitude,
+  locationDetected: Boolean(address.locationDetected),
+  locationSource: address.locationDetected ? "gps" : "manual",
 });
 
 const getCurrentLocation = () =>
@@ -49,26 +60,37 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [address, setAddress] = useState(() => {
     const draft = readCheckoutDraft();
-    return (
-      draft.address || {
-        name: user?.name || "",
-        mobile: user?.mobile || "",
-        houseShop: user?.address || "",
-        area: "",
-        city: "",
-        state: "",
-        pincode: user?.pinCode || "",
-      }
-    );
+    const profileAddress = {
+      name: user?.name || "",
+      mobile: user?.mobile || "",
+      houseShop: user?.address || "",
+      area: "",
+      city: "",
+      state: "",
+      pincode: user?.pinCode || "",
+    };
+    return draft.address
+      ? {
+          ...profileAddress,
+          ...draft.address,
+          name: draft.address.name || profileAddress.name,
+          mobile: draft.address.mobile || profileAddress.mobile,
+        }
+      : profileAddress;
   });
-  const [deliveryMode, setDeliveryMode] = useState("");
+  const [deliveryMode, setDeliveryMode] = useState(
+    () => readCheckoutDraft().deliveryMode || "",
+  );
   const [manualAddressOpen, setManualAddressOpen] = useState(false);
   const [customerLocation, setCustomerLocation] = useState(
     () => readCheckoutDraft().customerLocation || null,
   );
   const [deliveryQuote, setDeliveryQuote] = useState(null);
   const [deliveryError, setDeliveryError] = useState("");
-  const [deliveryCalculating, setDeliveryCalculating] = useState(false);
+  const [deliveryCalculating, setDeliveryCalculating] = useState(() => {
+    const draft = readCheckoutDraft();
+    return draft.deliveryMode === "gps" && Boolean(draft.customerLocation);
+  });
   const [gettingLocation, setGettingLocation] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -141,52 +163,78 @@ export default function Checkout() {
     if (deliveryMode !== "gps" || !customerLocation) return undefined;
 
     let active = true;
-    const shippingAddress = {
-      address: address.houseShop,
-      area: address.area,
-      city: address.city,
-      state: address.state,
-      pincode: address.pincode,
-    };
-    const timeout = setTimeout(() => {
-      setDeliveryCalculating(true);
-      setDeliveryError("");
-      api
-        .quoteShipping({ shippingAddress, customerLocation })
-        .then((response) => {
-          if (active) setDeliveryQuote(response.data.shipping);
-        })
-        .catch((requestError) => {
-          if (active) {
-            setDeliveryQuote(null);
-            setDeliveryError(
-              requestError.message ||
-                "We couldn't calculate delivery charges. Please try again or enter your delivery address.",
-            );
-          }
-        })
-        .finally(() => {
-          if (active) setDeliveryCalculating(false);
-        });
-    }, 0);
+    api
+      .quoteShipping({
+        customerLocation: {
+          latitude: customerLocation.latitude,
+          longitude: customerLocation.longitude,
+        },
+      })
+      .then((response) => {
+        if (!active) return;
+        const shipping = response.data.shipping;
+        const location = shipping.location || {};
+        if (!shipping.fullAddress || !location.city || !location.state)
+          throw new Error(
+            "We couldn't get a readable address for your current location.",
+          );
+        setAddress((current) => ({
+          ...current,
+          houseShop: [location.building, location.houseNumber, location.road]
+            .filter(Boolean)
+            .join(", "),
+          fullAddress: shipping.fullAddress,
+          building: location.building || "",
+          houseNumber: location.houseNumber || "",
+          road: location.road || "",
+          locality: location.locality || "",
+          district: location.district || "",
+          area: [location.locality, location.area, location.district]
+            .filter(Boolean)
+            .join(", "),
+          city: location.city,
+          state: location.state,
+          pincode: location.pincode || "",
+          country: location.country || "",
+          latitude: customerLocation.latitude,
+          longitude: customerLocation.longitude,
+          locationDetected: true,
+        }));
+        setDeliveryQuote(shipping);
+      })
+      .catch((requestError) => {
+        if (active) {
+          setDeliveryQuote(null);
+          setDeliveryMode("");
+          setDeliveryError(
+            requestError.message ||
+              "We couldn't get a readable address for your current location. Please enter your delivery address manually.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setDeliveryCalculating(false);
+          setGettingLocation(false);
+        }
+      });
 
     return () => {
       active = false;
-      clearTimeout(timeout);
     };
-  }, [
-    deliveryMode,
-    customerLocation,
-    address.houseShop,
-    address.area,
-    address.city,
-    address.state,
-    address.pincode,
-  ]);
+  }, [deliveryMode, customerLocation]);
 
   const updateAddress = (field, value) => {
     removeCoupon();
-    setAddress((current) => ({ ...current, [field]: value }));
+    setAddress((current) => ({
+      ...current,
+      [field]: value,
+      fullAddress: "",
+      building: "",
+      latitude: undefined,
+      longitude: undefined,
+      locationDetected: false,
+    }));
     setDeliveryMode("address");
     setCustomerLocation(null);
     setDeliveryQuote(null);
@@ -203,6 +251,14 @@ export default function Checkout() {
     setDeliveryError("");
     setDeliveryMode("address");
     setCustomerLocation(null);
+    setAddress((current) => ({
+      ...current,
+      fullAddress: "",
+      building: "",
+      latitude: undefined,
+      longitude: undefined,
+      locationDetected: false,
+    }));
     setDeliveryCalculating(false);
     removeCoupon();
     setManualAddressOpen(true);
@@ -214,6 +270,11 @@ export default function Checkout() {
     setDeliveryError("");
     setDeliveryMode("address");
     setCustomerLocation(null);
+    setAddress((current) => ({
+      ...current,
+      fullAddress: "",
+      locationDetected: false,
+    }));
     setManualAddressOpen(true);
   };
 
@@ -253,6 +314,18 @@ export default function Checkout() {
         },
       });
       setDeliveryQuote(response.data.shipping);
+      setAddress((current) => ({
+        ...current,
+        fullAddress: [
+          current.houseShop,
+          current.area,
+          current.city,
+          `${current.state} - ${current.pincode}`,
+        ]
+          .filter(Boolean)
+          .join(", "),
+        locationDetected: false,
+      }));
       setManualAddressOpen(false);
     } catch (requestError) {
       setDeliveryError(
@@ -274,19 +347,21 @@ export default function Checkout() {
     setCustomerLocation(null);
     setDeliveryQuote(null);
     setDeliveryError("");
+    setDeliveryCalculating(true);
     try {
       const location = await getCurrentLocation();
       setCustomerLocation(location);
       setDeliveryMode("gps");
-      setManualAddressOpen(true);
-    } catch {
+    } catch (locationError) {
       setDeliveryMode("");
       setManualAddressOpen(true);
-      setDeliveryError(
-        "We couldn't calculate delivery charges. Please try again or enter your delivery address.",
-      );
-    } finally {
       setGettingLocation(false);
+      setDeliveryCalculating(false);
+      setDeliveryError(
+        locationError.code === 1
+          ? "Location permission was denied. Please enter your delivery address manually."
+          : "Unable to detect your location. Please enter your delivery address manually.",
+      );
     }
   };
 
@@ -355,16 +430,28 @@ export default function Checkout() {
     event.preventDefault();
     setError("");
     if (!cartItems.length) return setError("Your bag is empty.");
+    if (!user) {
+      navigate("/login", {
+        state: { from: { pathname: "/checkout" } },
+      });
+      return;
+    }
+    const gpsAddressReady =
+      deliveryMode === "gps" &&
+      address.locationDetected &&
+      Boolean(address.fullAddress) &&
+      Boolean(customerLocation);
     if (
       !address.name.trim() ||
       !/^[6-9]\d{9}$/.test(address.mobile.trim()) ||
-      !address.houseShop.trim() ||
-      !address.area.trim() ||
-      !address.city.trim() ||
-      !address.state.trim()
+      (!gpsAddressReady &&
+        (!address.houseShop.trim() ||
+          !address.area.trim() ||
+          !address.city.trim() ||
+          !address.state.trim()))
     )
       return setError("Please enter a valid delivery address.");
-    if (!/^\d{6}$/.test(address.pincode.trim()))
+    if (!gpsAddressReady && !/^\d{6}$/.test(address.pincode.trim()))
       return setError("Please enter a valid 6-digit pincode.");
     if (deliveryMode === "address") {
       if (!deliveryQuote)
@@ -438,7 +525,7 @@ export default function Checkout() {
                 onClick={useDeviceLocation}
               >
                 {gettingLocation
-                  ? "Finding your location..."
+                  ? "Detecting your location..."
                   : "📍 Use My Current Location"}
               </button>
               <span>OR</span>
@@ -447,11 +534,17 @@ export default function Checkout() {
                 type="button"
                 disabled={gettingLocation || deliveryCalculating}
                 aria-expanded={manualAddressOpen}
-                onClick={toggleManualAddress}
+                onClick={
+                  deliveryMode === "gps" && address.locationDetected
+                    ? editManualAddress
+                    : toggleManualAddress
+                }
               >
                 {manualAddressOpen
                   ? "Cancel address entry"
-                  : "Enter a delivery address"}
+                  : deliveryMode === "gps" && address.locationDetected
+                    ? "Change Address"
+                    : "Enter a delivery address"}
               </button>
             </div>
             {deliveryCalculating && (
@@ -464,10 +557,15 @@ export default function Checkout() {
             )}
             {deliveryQuote && (
               <div className="delivery-quote">
-                {deliveryMode === "address" && !manualAddressOpen && (
+                {((deliveryMode === "address" && !manualAddressOpen) ||
+                  (deliveryMode === "gps" && address.locationDetected)) && (
                   <div className="delivery-quote-address">
                     <div>
-                      <strong>Delivery address confirmed</strong>
+                      <strong>
+                        {deliveryMode === "gps"
+                          ? "✓ Delivery location detected"
+                          : "Delivery address confirmed"}
+                      </strong>
                       <motion.button
                         className="edit-address-action"
                         type="button"
@@ -476,15 +574,14 @@ export default function Checkout() {
                         onClick={editManualAddress}
                       >
                         <PencilLine size={15} aria-hidden="true" />
-                        <span>Edit address</span>
+                        <span>Change Address</span>
                       </motion.button>
                     </div>
-                    <span>{address.name}</span>
+                    {address.name && <span>{address.name}</span>}
+                    {address.mobile && <span>{address.mobile}</span>}
                     <span>
-                      {address.houseShop}, {address.area}
-                    </span>
-                    <span>
-                      {address.city}, {address.state} - {address.pincode}
+                      {address.fullAddress ||
+                        `${address.houseShop}, ${address.area}, ${address.city}, ${address.state} - ${address.pincode}`}
                     </span>
                   </div>
                 )}

@@ -102,6 +102,11 @@ export default function Profile() {
     setError("");
   };
 
+  const handleLogout = () => {
+    signOut();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div className="app-shell">
       <Navbar admin={profile?.role === "admin"} />
@@ -141,13 +146,12 @@ export default function Profile() {
                     Edit Profile
                   </button>
                   <button
-                    className="icon-button"
+                    className="outline-action"
                     type="button"
-                    onClick={signOut}
-                    title="Log out"
-                    aria-label="Log out"
+                    onClick={handleLogout}
                   >
                     <LogOut size={18} />
+                    <span>Logout</span>
                   </button>
                 </>
               )}

@@ -117,22 +117,69 @@ const addressQuery = (address = {}) =>
     .filter(Boolean)
     .join(", ");
 
-const locationParts = ({ city = "", state = "", pincode = "" } = {}) => ({
-  city: String(city).trim(),
-  state: normalizeState(state),
-  pincode: String(pincode).trim(),
-});
+const locationParts = ({
+  building = "",
+  houseNumber = "",
+  road = "",
+  locality = "",
+  area = "",
+  district = "",
+  city = "",
+  state = "",
+  pincode = "",
+  country = "",
+} = {}) => {
+  const parts = {
+    building: String(building).trim(),
+    houseNumber: String(houseNumber).trim(),
+    road: String(road).trim(),
+    locality: String(locality).trim(),
+    area: String(area).trim(),
+    district: String(district).trim(),
+    city: String(city).trim(),
+    state: normalizeState(state),
+    pincode: String(pincode).trim(),
+    country: String(country).trim(),
+  };
+  const unique = (values) =>
+    values.filter(
+      (value, index) =>
+        value &&
+        values.findIndex(
+          (candidate) => candidate.toLowerCase() === value.toLowerCase(),
+        ) === index,
+    );
+  const street = unique([parts.building, parts.houseNumber, parts.road]);
+  const addressLines = unique([
+    ...street,
+    parts.locality,
+    parts.area,
+    parts.city,
+    parts.district,
+    [parts.state, parts.pincode].filter(Boolean).join(" - "),
+    parts.country,
+  ]);
+  return { ...parts, fullAddress: addressLines.join(", ") };
+};
 
 const googleLocationParts = (components = []) => {
-  const component = (type) =>
-    components.find((item) => item.types?.includes(type))?.long_name || "";
+  const component = (...types) =>
+    components.find((item) => types.some((type) => item.types?.includes(type)))
+      ?.long_name || "";
   return locationParts({
+    building: component("premise", "subpremise"),
+    houseNumber: component("street_number"),
+    road: component("route"),
+    locality: component("neighborhood", "sublocality_level_1", "sublocality"),
+    area: component("sublocality_level_2", "sublocality_level_3"),
+    district: component("administrative_area_level_2"),
     city:
       component("locality") ||
       component("postal_town") ||
       component("administrative_area_level_2"),
     state: component("administrative_area_level_1"),
     pincode: component("postal_code"),
+    country: component("country"),
   });
 };
 
@@ -246,32 +293,61 @@ const reverseGeocode = async (coordinates) => {
     );
     url.searchParams.set("key", env.googleMapsApiKey);
     const result = await requestJson(url);
-    return result.status === "OK" && result.results?.[0]
-      ? googleLocationParts(result.results[0].address_components)
-      : locationParts();
+    if (result.status !== "OK" || !result.results?.[0])
+      throw new Error(
+        "We couldn't get a readable address for your current location.",
+      );
+    const address = googleLocationParts(result.results[0].address_components);
+    if (
+      !address.fullAddress ||
+      !address.state ||
+      !(address.city || address.district)
+    )
+      throw new Error(
+        "We couldn't get a readable address for your current location.",
+      );
+    return address;
   }
-  if (env.geocodingProvider !== "nominatim") return locationParts();
+  if (env.geocodingProvider !== "nominatim")
+    throw new Error(
+      "We couldn't get a readable address for your current location.",
+    );
   const url = new URL(`${env.nominatimBaseUrl}/reverse`);
   url.searchParams.set("lat", String(coordinates.latitude));
   url.searchParams.set("lon", String(coordinates.longitude));
   url.searchParams.set("format", "jsonv2");
-  try {
-    const result = await requestJson(url, {
-      headers: { "User-Agent": env.geocodingUserAgent },
-    });
-    return locationParts({
-      city:
-        result.address?.city ||
-        result.address?.town ||
-        result.address?.village ||
-        result.address?.municipality ||
-        result.address?.county,
-      state: result.address?.state,
-      pincode: result.address?.postcode,
-    });
-  } catch {
-    return locationParts();
-  }
+  const result = await requestJson(url, {
+    headers: { "User-Agent": env.geocodingUserAgent },
+  });
+  if (!result?.address)
+    throw new Error(
+      "We couldn't get a readable address for your current location.",
+    );
+  const address = locationParts({
+    building: result.address.building,
+    houseNumber: result.address.house_number,
+    road: result.address.road,
+    locality: result.address.neighbourhood || result.address.hamlet,
+    area: result.address.suburb || result.address.city_district,
+    district: result.address.county,
+    city:
+      result.address.city ||
+      result.address.town ||
+      result.address.village ||
+      result.address.municipality,
+    state: result.address.state,
+    pincode: result.address.postcode,
+    country: result.address.country,
+  });
+  if (
+    !address.fullAddress ||
+    !address.state ||
+    !(address.city || address.district)
+  )
+    throw new Error(
+      "We couldn't get a readable address for your current location.",
+    );
+  return address;
 };
 
 const getRoadDistanceKm = async (origin, destination) => {
@@ -347,6 +423,8 @@ const calculateDelivery = async ({ customerLocation, shippingAddress }) => {
     distanceMethod: route.method,
     geocodingPrecision: destination.geocodingPrecision,
     location: destination.resolvedAddress,
+    fullAddress: destination.resolvedAddress.fullAddress,
+    locationDetected: Boolean(customerLocation),
     destination: {
       latitude: destination.latitude,
       longitude: destination.longitude,

@@ -63,6 +63,28 @@ export default function AdminOrderDetails() {
         </main>
       </div>
     );
+  const deliveryAddress = order.shippingAddress || {};
+  const latitude =
+    deliveryAddress.latitude ?? order.shipping?.destination?.latitude;
+  const longitude =
+    deliveryAddress.longitude ?? order.shipping?.destination?.longitude;
+  const hasCoordinates =
+    latitude != null &&
+    longitude != null &&
+    Number.isFinite(Number(latitude)) &&
+    Number.isFinite(Number(longitude));
+  const fullAddress =
+    deliveryAddress.fullAddress ||
+    [
+      deliveryAddress.address,
+      deliveryAddress.area,
+      deliveryAddress.city,
+      [deliveryAddress.state, deliveryAddress.pincode]
+        .filter(Boolean)
+        .join(" - "),
+    ]
+      .filter(Boolean)
+      .join(", ");
   return (
     <div className="app-shell">
       <Navbar admin />
@@ -108,17 +130,47 @@ export default function AdminOrderDetails() {
                 <strong>{money(item.itemTotal)}</strong>
               </div>
             ))}
-            <h2>Delivery address</h2>
+            <h2>📍 Delivery Location</h2>
             <p>
-              {order.shippingAddress.name} · {order.shippingAddress.mobile}
+              <strong>Address</strong>
               <br />
-              {order.shippingAddress.address}
-              {order.shippingAddress.area
-                ? `, ${order.shippingAddress.area}`
-                : ""}
-              , {order.shippingAddress.city}, {order.shippingAddress.state} -{" "}
-              {order.shippingAddress.pincode}
+              {fullAddress || "No delivery address saved."}
             </p>
+            <p>
+              <strong>Customer</strong>
+              <br />
+              {deliveryAddress.name || order.userId?.name || "Customer"} ·{" "}
+              {deliveryAddress.mobile || order.userId?.mobile || ""}
+            </p>
+            <p>
+              <strong>City</strong>: {deliveryAddress.city || "Not provided"}
+              <br />
+              <strong>State</strong>: {deliveryAddress.state || "Not provided"}
+              <br />
+              <strong>Pincode</strong>:{" "}
+              {deliveryAddress.pincode || "Not provided"}
+              <br />
+              <strong>Coordinates</strong>:{" "}
+              {hasCoordinates
+                ? `${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`
+                : "Unavailable"}
+              <br />
+              <strong>Location Source</strong>:{" "}
+              {deliveryAddress.locationSource === "gps" ||
+              deliveryAddress.locationDetected
+                ? "Current Location"
+                : "Manual Address"}
+            </p>
+            {hasCoordinates && (
+              <a
+                className="outline-action"
+                href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open in Google Maps
+              </a>
+            )}
             {order.shipping && (
               <p>
                 Delivery Distance:{" "}

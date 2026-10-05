@@ -107,66 +107,107 @@ export default function AdminOrderSection({ orders, reload, setError }) {
         </select>
       </div>
       <div className="admin-list">
-        {visibleOrders.map((order) => (
-          <article className="admin-row admin-order-row" key={order._id}>
-            <div>
-              <strong>#{order.orderNumber}</strong>
-              <span>
-                {order.userId?.name || "Customer"} · {order.items.length} items
-                · {new Date(order.createdAt).toLocaleDateString("en-IN")}
-              </span>
-              <span>
-                GST {money(order.pricing.totalGST)} · Total{" "}
-                {money(order.pricing.grandTotal)}
-              </span>
-              <span>
-                {order.items
-                  .map((item) => `${item.productName} · ${item.quantityKg} KG`)
-                  .join(" · ")}
-              </span>
-            </div>
-            <div className="row-actions">
-              <span className={`order-status status-${order.orderStatus}`}>
-                {labels[order.orderStatus]}
-              </span>
-              <Link
-                className="outline-action"
-                to={`/admin/orders/${order._id}`}
-              >
-                View
-              </Link>
-              {order.orderStatus === "received" && (
-                <button
-                  type="button"
-                  onClick={() => update(order._id, "confirmed")}
+        {visibleOrders.map((order) => {
+          const deliveryAddress = order.shippingAddress || {};
+          const latitude =
+            deliveryAddress.latitude ?? order.shipping?.destination?.latitude;
+          const longitude =
+            deliveryAddress.longitude ?? order.shipping?.destination?.longitude;
+          const hasCoordinates =
+            latitude != null &&
+            longitude != null &&
+            Number.isFinite(Number(latitude)) &&
+            Number.isFinite(Number(longitude));
+          const fullAddress =
+            deliveryAddress.fullAddress ||
+            [
+              deliveryAddress.address,
+              deliveryAddress.area,
+              deliveryAddress.city,
+              [deliveryAddress.state, deliveryAddress.pincode]
+                .filter(Boolean)
+                .join(" - "),
+            ]
+              .filter(Boolean)
+              .join(", ");
+          return (
+            <article className="admin-row admin-order-row" key={order._id}>
+              <div>
+                <strong>#{order.orderNumber}</strong>
+                <span>
+                  {order.userId?.name || "Customer"} · {order.items.length}{" "}
+                  items ·{" "}
+                  {new Date(order.createdAt).toLocaleDateString("en-IN")}
+                </span>
+                <span>
+                  GST {money(order.pricing.totalGST)} · Total{" "}
+                  {money(order.pricing.grandTotal)}
+                </span>
+                <span>
+                  {order.items
+                    .map(
+                      (item) => `${item.productName} · ${item.quantityKg} KG`,
+                    )
+                    .join(" · ")}
+                </span>
+                <span>Delivery: {fullAddress || "Address unavailable"}</span>
+                {hasCoordinates && (
+                  <span>
+                    Location: {Number(latitude).toFixed(5)},{" "}
+                    {Number(longitude).toFixed(5)} ·{" "}
+                    <a
+                      href={`https://www.google.com/maps?q=${latitude},${longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Maps
+                    </a>
+                  </span>
+                )}
+              </div>
+              <div className="row-actions">
+                <span className={`order-status status-${order.orderStatus}`}>
+                  {labels[order.orderStatus]}
+                </span>
+                <Link
+                  className="outline-action"
+                  to={`/admin/orders/${order._id}`}
                 >
-                  Confirm
-                </button>
-              )}
-              {order.orderStatus === "confirmed" && (
-                <button
-                  type="button"
-                  onClick={() => update(order._id, "shipped")}
-                >
-                  Ship
-                </button>
-              )}
-              {order.orderStatus === "shipped" && (
-                <button
-                  type="button"
-                  onClick={() => update(order._id, "delivered")}
-                >
-                  Deliver
-                </button>
-              )}
-              {["received", "confirmed"].includes(order.orderStatus) && (
-                <button type="button" onClick={() => cancel(order._id)}>
-                  Cancel
-                </button>
-              )}
-            </div>
-          </article>
-        ))}
+                  View
+                </Link>
+                {order.orderStatus === "received" && (
+                  <button
+                    type="button"
+                    onClick={() => update(order._id, "confirmed")}
+                  >
+                    Confirm
+                  </button>
+                )}
+                {order.orderStatus === "confirmed" && (
+                  <button
+                    type="button"
+                    onClick={() => update(order._id, "shipped")}
+                  >
+                    Ship
+                  </button>
+                )}
+                {order.orderStatus === "shipped" && (
+                  <button
+                    type="button"
+                    onClick={() => update(order._id, "delivered")}
+                  >
+                    Deliver
+                  </button>
+                )}
+                {["received", "confirmed"].includes(order.orderStatus) && (
+                  <button type="button" onClick={() => cancel(order._id)}>
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );

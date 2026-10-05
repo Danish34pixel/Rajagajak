@@ -20,24 +20,24 @@ function App() {
     <BrowserRouter>
       <FlyToCartProvider>
         <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/products/:id" element={<ProductDetails />} />
-        <Route element={<ProtectedRoute />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/profile" element={<Profile />} />
+          <Route path="/products/:id" element={<ProductDetails />} />
           <Route path="/bag" element={<Bag />} />
           <Route path="/checkout" element={<Checkout />} />
-          <Route path="/orders" element={<MyOrders />} />
-          <Route path="/orders/:id" element={<OrderDetails />} />
-          <Route path="/order-success/:id" element={<OrderSuccess />} />
-        </Route>
-        <Route element={<AdminRoute />}>
-          <Route path="/admin/*" element={<AdminDashboard />} />
-          <Route path="/admin/orders/:id" element={<AdminOrderDetails />} />
-        </Route>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/orders" element={<MyOrders />} />
+            <Route path="/orders/:id" element={<OrderDetails />} />
+            <Route path="/order-success/:id" element={<OrderSuccess />} />
+          </Route>
+          <Route element={<AdminRoute />}>
+            <Route path="/admin/*" element={<AdminDashboard />} />
+            <Route path="/admin/orders/:id" element={<AdminOrderDetails />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </FlyToCartProvider>
     </BrowserRouter>

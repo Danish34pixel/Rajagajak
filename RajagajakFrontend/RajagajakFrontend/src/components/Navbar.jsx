@@ -1,12 +1,10 @@
-import { LogOut, Search, ShoppingBag, UserRound, X } from "lucide-react";
+import { Search, ShoppingBag, UserRound, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
-import { useAuth } from "../context/useAuth.js";
 import { useCart } from "../context/useCart.js";
 import * as api from "../services/api.js";
 
 export default function Navbar({ admin = false }) {
-  const { signOut } = useAuth();
   const { cartCount } = useCart();
   const location = useLocation();
   const navigate = useNavigate();
@@ -204,15 +202,6 @@ export default function Navbar({ admin = false }) {
             <span>Cart</span>
             {cartCount > 0 && <b>{cartCount}</b>}
           </Link>
-          <button
-            className="icon-button"
-            type="button"
-            onClick={signOut}
-            title="Log out"
-            aria-label="Log out"
-          >
-            <LogOut size={18} />
-          </button>
         </div>
       </div>
     </header>
