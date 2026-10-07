@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { PencilLine, X } from "lucide-react";
 import Navbar from "../components/Navbar.jsx";
@@ -69,7 +69,8 @@ const loadRazorpayCheckoutScript = async () => {
 
 export default function Checkout() {
   const { cartItems, clearCart } = useCart();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
   const [address, setAddress] = useState(() => {
     const draft = readCheckoutDraft();
@@ -124,6 +125,17 @@ export default function Checkout() {
   const quoteError = quoteFailure?.key === cartKey ? quoteFailure.message : "";
   const appliedCoupon =
     appliedCouponResult?.key === cartKey ? appliedCouponResult.data : null;
+
+  const redirectToLoginOnUnauthorized = (requestError) => {
+    if (requestError.status !== 401) return false;
+
+    signOut();
+    navigate("/login", {
+      replace: true,
+      state: { from: location },
+    });
+    return true;
+  };
 
   useEffect(() => {
     sessionStorage.setItem(
@@ -408,7 +420,9 @@ export default function Checkout() {
     } catch (requestError) {
       setAppliedCouponResult(null);
       setSelectedCouponCode("");
-      setCouponError(requestError.message || "Unable to apply coupon.");
+      if (!redirectToLoginOnUnauthorized(requestError)) {
+        setCouponError(requestError.message || "Unable to apply coupon.");
+      }
     } finally {
       setApplyingCoupon(false);
     }
@@ -541,10 +555,12 @@ export default function Checkout() {
               state: { order: verification.data },
             });
           } catch (verificationError) {
-            setError(
-              verificationError.message ||
-                "Payment verification failed. Please contact support.",
-            );
+            if (!redirectToLoginOnUnauthorized(verificationError)) {
+              setError(
+                verificationError.message ||
+                  "Payment verification failed. Please contact support.",
+              );
+            }
           } finally {
             setSubmitting(false);
           }
@@ -567,7 +583,9 @@ export default function Checkout() {
 
       razorpay.open();
     } catch (requestError) {
-      setError(requestError.message || "Unable to place your order.");
+      if (!redirectToLoginOnUnauthorized(requestError)) {
+        setError(requestError.message || "Unable to place your order.");
+      }
       setSubmitting(false);
     }
   };
