@@ -8,6 +8,7 @@ const productRoutes = require("./product.routes");
 const orderRoutes = require("./order.routes");
 const deliveryRoutes = require("./delivery.routes");
 const notificationRoutes = require("./notification.routes");
+const paymentRoutes = require("./payment.routes");
 
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.use("/products", productRoutes);
 router.use("/delivery", deliveryRoutes);
 router.use("/orders", orderRoutes);
 router.use("/notifications", notificationRoutes);
+router.use("/payment", paymentRoutes);
 
 module.exports = router;

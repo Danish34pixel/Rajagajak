@@ -24,8 +24,8 @@ app.use(
     credentials: false,
   }),
 );
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+app.use(express.json({ limit: "25kb" }));
+app.use(express.urlencoded({ extended: true, limit: "25kb" }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
 
 app.get("/", (req, res) => {
@@ -33,6 +33,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1", apiRoutes);
+app.use("/api/payment", require("./routes/payment.routes"));
 app.use("/api/coupons", couponRoutes);
 app.use("/api/delivery", deliveryRoutes);
 app.use(notFound);

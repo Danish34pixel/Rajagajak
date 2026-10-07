@@ -144,8 +144,7 @@ const evaluateCoupon = ({
   )
     throw new Error(COUPON_ERRORS.UNSUPPORTED);
   if (
-    (coupon.eligibilityType === "specific_users" ||
-      coupon.eligibleUsers?.length) &&
+    coupon.eligibilityType === "specific_users" &&
     !coupon.eligibleUsers?.some(
       (eligibleUser) => String(eligibleUser) === String(userId),
     )

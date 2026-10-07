@@ -286,6 +286,16 @@ const createOrder = asyncHandler(async (req, res) => {
   }
   const orderNumber = () =>
     `RJG-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  const normalizedPaymentMethod = String(req.body.paymentMethod || "cod")
+    .trim()
+    .toLowerCase();
+  const resolvedPaymentMethod = ["cod", "online", "razorpay"].includes(
+    normalizedPaymentMethod,
+  )
+    ? normalizedPaymentMethod === "online"
+      ? "razorpay"
+      : normalizedPaymentMethod
+    : "cod";
   const makeOrderSnapshot = (items, orderPricing, appliedCoupon = null) => ({
     orderNumber: orderNumber(),
     clientRequestId,
@@ -308,8 +318,8 @@ const createOrder = asyncHandler(async (req, res) => {
           },
         }
       : {}),
-    paymentMethod: "cod",
-    paymentStatus: "cod",
+    paymentMethod: resolvedPaymentMethod,
+    paymentStatus: "pending",
   });
 
   if (couponResult) {

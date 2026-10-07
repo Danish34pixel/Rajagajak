@@ -4,17 +4,45 @@ Modular JavaScript REST API built with Node.js, Express, and MongoDB/Mongoose.
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and configure `MONGO_URI`, `JWT_SECRET`,
-   `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, and `IMAGEKIT_URL_ENDPOINT`.
-   Configure the store coordinates and delivery settings there as well. The
-   coordinates in `.env.example` are the Photon/OpenStreetMap geocoder result
-   for Moti Masjid, Bhopal (postcode 462001), not a rooftop-level match for
-   Shop No. 27; verify them against the shop before enabling live delivery.
+1. Create a backend-root `.env` file and configure `MONGO_URI`, `JWT_SECRET`,
+   `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT`,
+   `RAZORPAY_KEY_ID`, and `RAZORPAY_KEY_SECRET`. Configure the store
+   coordinates and delivery settings there as well. Verify the store
+   coordinates against the shop before enabling live delivery.
 2. Install dependencies with `npm install`.
 3. Run locally with `npm run dev` or start with `npm start`.
 
+## MongoDB Atlas connection troubleshooting
+
+Set `MONGO_URI` once in the backend root `.env` file. For Atlas, use the
+connection string copied from the active cluster's **Connect → Drivers** page;
+do not include a second `MONGO_URI=` inside its value. Keep the real database
+username and password only in `.env`, and percent-encode special characters in
+them. The application loads this file at startup; production deployments may
+provide the same variables through the deployment environment.
+
+If startup reports that MongoDB servers cannot be reached:
+
+1. In Atlas, open **Security → Network Access → IP Access List** and add the
+   current public IP address of the development machine. For local development
+   only, `0.0.0.0/0` temporarily allows connections from any IP; it is not
+   recommended for production.
+2. Confirm the cluster is active/running. Resume it in Atlas if it is paused.
+3. On Windows, test DNS SRV resolution in PowerShell with
+   `Resolve-DnsName -Name _mongodb._tcp.<cluster-host> -Type SRV`, replacing
+   `<cluster-host>` with the hostname from the Atlas URI. A VPN, firewall,
+   antivirus network filter, or restrictive Wi-Fi can also block the connection.
+4. After making the Atlas/network change, run `npm run dev` again.
+
 The API is versioned under `/api/v1`. The health endpoint is available at
 `GET /api/v1/health`.
+
+Razorpay online checkout fetches the public key from `GET /api/payment/config`
+(also available at `/api/v1/payment/config`) before using
+`POST /api/v1/payment/create-order` and `POST /api/v1/payment/verify` (also
+available at `/api/payment/*` for direct compatibility). The frontend must
+only receive the public key ID; the secret remains server-only in the backend
+environment.
 
 Upload an image with `POST /api/v1/images` using a multipart form field named
 `image`. The file is uploaded to ImageKit under `/rajagajak`, and its URL and
