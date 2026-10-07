@@ -28,11 +28,22 @@ const registerUser = async ({
   }
 
   const hashedPassword = await bcrypt.hash(password, 12);
+  const normalizedAddress =
+    typeof address === "string"
+      ? address.trim()
+      : {
+          addressLine1: String(address.addressLine1 || "").trim(),
+          addressLine2: String(address.addressLine2 || "").trim(),
+          pincode: String(pinCode).trim(),
+          city: String(address.city || "").trim(),
+          state: String(address.state || "").trim(),
+          country: String(address.country || "India").trim(),
+        };
   const userData = {
     name: name.trim(),
     mobile: String(mobile).trim(),
     email: normalizedEmail,
-    address: address.trim(),
+    address: normalizedAddress,
     pinCode: String(pinCode).trim(),
     password: hashedPassword,
     role: "user",

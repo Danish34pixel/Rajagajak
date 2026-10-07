@@ -74,14 +74,33 @@ export default function Checkout() {
   const navigate = useNavigate();
   const [address, setAddress] = useState(() => {
     const draft = readCheckoutDraft();
+    const savedAddress = user?.address;
+    const structuredAddress =
+      savedAddress && typeof savedAddress === "object" ? savedAddress : null;
     const profileAddress = {
       name: user?.name || "",
       mobile: user?.mobile || "",
-      houseShop: user?.address || "",
-      area: "",
-      city: "",
-      state: "",
-      pincode: user?.pinCode || "",
+      houseShop: structuredAddress
+        ? structuredAddress.addressLine1 || ""
+        : savedAddress || "",
+      area: structuredAddress?.addressLine2 || "",
+      city: structuredAddress?.city || "",
+      state: structuredAddress?.state || "",
+      pincode: structuredAddress?.pincode || user?.pinCode || "",
+      country: structuredAddress?.country || "",
+      fullAddress: structuredAddress
+        ? [
+            structuredAddress.addressLine1,
+            structuredAddress.addressLine2,
+            structuredAddress.city,
+            [structuredAddress.state, structuredAddress.pincode || user?.pinCode]
+              .filter(Boolean)
+              .join(" - "),
+            structuredAddress.country,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : "",
     };
     return draft.address
       ? {
