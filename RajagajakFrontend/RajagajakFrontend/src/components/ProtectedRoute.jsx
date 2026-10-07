@@ -1,6 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth.js";
-import { useCart } from "../context/useCart.js";
 import Loader from "./Loader.jsx";
 
 const PENDING_CHECKOUT_KEY = "rajagajak_pending_checkout";
@@ -25,7 +24,6 @@ export default function ProtectedRoute() {
 
 export function CheckoutRoute() {
   const { user, loading } = useAuth();
-  const { cartItems } = useCart();
   const location = useLocation();
 
   if (loading)
@@ -35,7 +33,7 @@ export function CheckoutRoute() {
       </div>
     );
 
-  if (!user && cartItems.length > 0) {
+  if (!user) {
     localStorage.setItem(PENDING_CHECKOUT_KEY, "true");
     return <Navigate to="/login" replace state={{ from: location }} />;
   }

@@ -11,7 +11,10 @@ import OrderDetails from "./pages/OrderDetails.jsx";
 import OrderSuccess from "./pages/OrderSuccess.jsx";
 import AdminOrderDetails from "./pages/AdminOrderDetails.jsx";
 import Profile from "./pages/Profile.jsx";
-import ProtectedRoute, { AdminRoute } from "./components/ProtectedRoute.jsx";
+import ProtectedRoute, {
+  AdminRoute,
+  CheckoutRoute,
+} from "./components/ProtectedRoute.jsx";
 import OrderStatusNotification from "./components/OrderStatusNotification.jsx";
 import { FlyToCartProvider } from "./components/FlyToCart.jsx";
 import "./App.css";
@@ -28,7 +31,9 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/products/:id" element={<ProductDetails />} />
           <Route path="/bag" element={<Bag />} />
-          <Route path="/checkout" element={<Checkout />} />
+          <Route element={<CheckoutRoute />}>
+            <Route path="/checkout" element={<Checkout />} />
+          </Route>
           <Route element={<ProtectedRoute />}>
             <Route path="/profile" element={<Profile />} />
             <Route path="/orders" element={<MyOrders />} />
