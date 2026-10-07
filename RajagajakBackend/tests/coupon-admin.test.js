@@ -66,7 +66,12 @@ test("invalid schedule, limits, target IDs, pincode, and payment values are reje
     null,
   );
   assert.equal(
-    normalizeCoupon(validCoupon({ eligibleUsers: ["bad-id"] })),
+    normalizeCoupon(
+      validCoupon({
+        eligibilityType: "specific_users",
+        eligibleUsers: ["bad-id"],
+      }),
+    ),
     null,
   );
   assert.equal(normalizeCoupon(validCoupon({ pincodes: ["46201"] })), null);
@@ -89,4 +94,15 @@ test("specific-user coupons require a valid selected customer", () => {
       }),
     ),
   );
+});
+
+test("everyone coupons discard stale eligible users", () => {
+  const coupon = normalizeCoupon(
+    validCoupon({
+      eligibilityType: "everyone",
+      eligibleUsers: ["507f1f77bcf86cd799439011"],
+    }),
+  );
+
+  assert.deepEqual(coupon.eligibleUsers, []);
 });

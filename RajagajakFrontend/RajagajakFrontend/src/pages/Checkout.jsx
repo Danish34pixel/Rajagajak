@@ -54,6 +54,19 @@ const getCurrentLocation = () =>
     );
   });
 
+const loadRazorpayCheckoutScript = async () => {
+  if (window.Razorpay) return true;
+  await new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => reject(new Error("Unable to load Razorpay checkout."));
+    document.body.appendChild(script);
+  });
+  return Boolean(window.Razorpay);
+};
+
 export default function Checkout() {
   const { cartItems, clearCart } = useCart();
   const { user } = useAuth();
@@ -94,6 +107,7 @@ export default function Checkout() {
   const [gettingLocation, setGettingLocation] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cod");
   const [coupons, setCoupons] = useState([]);
   const [couponError, setCouponError] = useState("");
   const [selectedCouponCode, setSelectedCouponCode] = useState("");
@@ -384,7 +398,8 @@ export default function Checkout() {
         })),
         deliveryAddress: deliveryAddressPayload(address),
         ...(deliveryMode === "gps" ? { customerLocation } : {}),
-        paymentMethod: "cod",
+        paymentMethod:
+          selectedPaymentMethod === "online" ? "razorpay" : "cod",
       });
       setAppliedCouponResult({ key: cartKey, data: response.data });
       setSelectedCouponCode(response.data.coupon.code);
@@ -463,26 +478,96 @@ export default function Checkout() {
       return setError(
         "We couldn't calculate delivery charges. Please try again or enter your delivery address.",
       );
+
+    const paymentMethod =
+      selectedPaymentMethod === "online" ? "razorpay" : "cod";
+    const orderPayload = {
+      clientRequestId: crypto.randomUUID(),
+      paymentMethod,
+      shippingAddress: deliveryAddressPayload(address),
+      ...(deliveryMode === "gps" ? { customerLocation } : {}),
+      items: cartItems.map((item) => ({
+        productId: item.productId,
+        quantityKg: item.quantityKg,
+      })),
+      couponCode: appliedCoupon?.coupon?.code || undefined,
+    };
+
     setSubmitting(true);
     try {
-      const response = await api.createOrder({
-        clientRequestId: crypto.randomUUID(),
-        shippingAddress: deliveryAddressPayload(address),
-        ...(deliveryMode === "gps" ? { customerLocation } : {}),
-        items: cartItems.map((item) => ({
-          productId: item.productId,
-          quantityKg: item.quantityKg,
-        })),
-        couponCode: appliedCoupon?.coupon?.code || undefined,
+      if (paymentMethod === "cod") {
+        const response = await api.createOrder(orderPayload);
+        sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+        clearCart();
+        navigate(`/order-success/${response.data._id}`, {
+          state: { order: response.data },
+        });
+        return;
+      }
+
+      const configResponse = await api.paymentConfig();
+      const razorpayKeyId = configResponse.keyId;
+      if (!razorpayKeyId) {
+        throw new Error(
+          "Razorpay payment is currently unavailable. Please try again later.",
+        );
+      }
+      await loadRazorpayCheckoutScript();
+      const response = await api.createRazorpayOrder(orderPayload);
+      const razorpayOrder = response.data?.razorpayOrder;
+      if (!razorpayOrder?.id) {
+        throw new Error("Unable to create the Razorpay order.");
+      }
+
+      const razorpay = new window.Razorpay({
+        key: razorpayKeyId,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        order_id: razorpayOrder.id,
+        name: "Rajagajak",
+        description: "Order payment",
+        image: "",
+        handler: async (paymentResponse) => {
+          try {
+            const verification = await api.verifyRazorpayPayment({
+              ...orderPayload,
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+            });
+            sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
+            clearCart();
+            navigate(`/order-success/${verification.data._id}`, {
+              state: { order: verification.data },
+            });
+          } catch (verificationError) {
+            setError(
+              verificationError.message ||
+                "Payment verification failed. Please contact support.",
+            );
+          } finally {
+            setSubmitting(false);
+          }
+        },
+        prefill: {
+          name: user?.name || "",
+          email: user?.email || "",
+          contact: user?.mobile || "",
+        },
+        theme: {
+          color: "#d97706",
+        },
+        modal: {
+          ondismiss: () => {
+            setSubmitting(false);
+            setError("Payment was cancelled. Your order was not placed.");
+          },
+        },
       });
-      sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
-      clearCart();
-      navigate(`/order-success/${response.data._id}`, {
-        state: { order: response.data },
-      });
+
+      razorpay.open();
     } catch (requestError) {
       setError(requestError.message || "Unable to place your order.");
-    } finally {
       setSubmitting(false);
     }
   };
@@ -943,10 +1028,62 @@ export default function Checkout() {
               <span>Grand total</span>
               <strong>{money(currentGrandTotal)}</strong>
             </div>
-            <p>
-              Cash on delivery architecture is active. Online payment
-              verification is not enabled.
-            </p>
+
+            <div className="checkout-payment-methods" style={{ margin: "16px 0" }}>
+              <h3 style={{ marginBottom: 12 }}>Payment Method</h3>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 12px",
+                  border: "1px solid #e5d9c4",
+                  borderRadius: 10,
+                  background:
+                    selectedPaymentMethod === "cod" ? "#fff7ef" : "transparent",
+                  marginBottom: 8,
+                }}
+              >
+                <input
+                  type="radio"
+                  checked={selectedPaymentMethod === "cod"}
+                  onChange={() => setSelectedPaymentMethod("cod")}
+                />
+                <span>
+                  <strong>Cash on Delivery</strong>
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                    Pay when your order is delivered.
+                  </div>
+                </span>
+              </label>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "10px 12px",
+                  border: "1px solid #e5d9c4",
+                  borderRadius: 10,
+                  background:
+                    selectedPaymentMethod === "online"
+                      ? "#fff7ef"
+                      : "transparent",
+                }}
+              >
+                <input
+                  type="radio"
+                  checked={selectedPaymentMethod === "online"}
+                  onChange={() => setSelectedPaymentMethod("online")}
+                />
+                <span>
+                  <strong>Online Payment</strong>
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                    Pay securely using UPI, cards, and net banking.
+                  </div>
+                </span>
+              </label>
+            </div>
+
             <button
               className="primary-action"
               type="submit"
@@ -958,7 +1095,13 @@ export default function Checkout() {
                 gettingLocation
               }
             >
-              {submitting ? "Placing order..." : "Place order"}
+              {submitting
+                ? selectedPaymentMethod === "online"
+                  ? "Processing payment..."
+                  : "Placing order..."
+                : selectedPaymentMethod === "online"
+                  ? `Pay ${money(currentGrandTotal)}`
+                  : "Place Order"}
             </button>
           </aside>
         </form>

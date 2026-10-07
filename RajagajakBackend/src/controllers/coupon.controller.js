@@ -40,6 +40,9 @@ const normalize = (body) => {
   const usageLimit = optionalNumber(body.usageLimit);
   const perUserLimit = optionalNumber(body.perUserLimit);
   const radiusKm = optionalNumber(body.radiusKm);
+  const eligibilityType = body.eligibilityType || "everyone";
+  const eligibleUsers =
+    eligibilityType === "specific_users" ? stringList(body.eligibleUsers) : [];
   const startDate = new Date(body.startDate);
   const expiryDate = new Date(body.expiryDate);
   const requiresDiscountValue = [
@@ -94,9 +97,8 @@ const normalize = (body) => {
       "review_reward",
     ].includes(body.eligibilityType || "everyone") ||
     !objectIdsValid(stringList(body.applicableProducts)) ||
-    !objectIdsValid(stringList(body.eligibleUsers)) ||
-    (body.eligibilityType === "specific_users" &&
-      stringList(body.eligibleUsers).length === 0) ||
+    !objectIdsValid(eligibleUsers) ||
+    (eligibilityType === "specific_users" && eligibleUsers.length === 0) ||
     (Array.isArray(body.allowedDays) &&
       body.allowedDays.some(
         (day) =>
@@ -131,8 +133,8 @@ const normalize = (body) => {
     getDiscountAmount: optionalNumber(body.getDiscountAmount),
     applicableProducts: stringList(body.applicableProducts),
     applicableCategories: stringList(body.applicableCategories),
-    eligibilityType: body.eligibilityType || "everyone",
-    eligibleUsers: stringList(body.eligibleUsers),
+    eligibilityType,
+    eligibleUsers,
     cities: stringList(body.cities),
     pincodes: stringList(body.pincodes),
     radiusKm,

@@ -1,4 +1,5 @@
 const express = require("express");
+const { authenticate } = require("../middleware/auth.middleware");
 const {
   activeCoupons,
   applyCoupon,
@@ -6,5 +7,5 @@ const {
 
 const router = express.Router();
 router.get("/active", activeCoupons);
-router.post("/apply", applyCoupon);
+router.post("/apply", authenticate, applyCoupon);
 module.exports = router;

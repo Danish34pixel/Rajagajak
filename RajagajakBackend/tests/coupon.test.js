@@ -102,6 +102,50 @@ test("free shipping and fixed shipping never increase the normal delivery charge
   assert.equal(lowRate.shippingDiscount, 0);
 });
 
+test("free shipping applies to everyone for COD and online despite stale user selections", () => {
+  const item = {
+    ...baseItems[0],
+    quantityKg: 1,
+    pricePerKg: 1,
+    mrpPerKg: 1,
+    discountAmount: 0,
+    taxableAmount: 1,
+    gstPercentage: 0,
+    gstAmount: 0,
+    itemTotal: 1,
+  };
+
+  for (const paymentMethod of ["cod", "razorpay"]) {
+    const result = evaluate(
+      {
+        type: "free_shipping",
+        discountValue: 0,
+        minimumOrderValue: 1,
+        minimumQuantity: 1,
+        eligibilityType: "everyone",
+        eligibleUsers: ["another-user"],
+        cities: ["Bhopal"],
+        pincodes: ["462001"],
+        radiusKm: 100,
+      },
+      {
+        items: [item],
+        paymentMethod,
+        shipping: {
+          distanceKm: 2.8,
+          shippingCharge: 50,
+          location: { city: "Bhopal", pincode: "462001" },
+        },
+      },
+    );
+
+    assert.equal(result.discount, 0);
+    assert.equal(result.shippingDiscount, 50);
+    assert.equal(result.finalShipping, 0);
+    assert.equal(result.pricing.grandTotal, 1);
+  }
+});
+
 test("buy two get one uses only purchased eligible quantity", () => {
   const result = evaluate({
     type: "buy_x_get_y",

@@ -2155,6 +2155,25 @@ fieldset.checkout-fields {
     max-width: 100%;
     overflow-x: hidden;
   }
+  .checkout-summary > .checkout-payment-methods {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+  .checkout-payment-methods > label {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+  .checkout-payment-methods > label > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .checkout-summary > button[type="submit"] {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
   .coupon-window-backdrop {
     padding: 16px;
   }

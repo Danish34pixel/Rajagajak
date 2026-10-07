@@ -28,6 +28,8 @@ const missingEnvironmentVariables = requiredEnvironmentVariables.filter(
 
 const imageKitPrivateKey = getEnv("IMAGEKIT_PRIVATE_KEY");
 const googleMapsApiKey = getEnv("GOOGLE_MAPS_API_KEY");
+const razorpayKeyId = getEnv("RAZORPAY_KEY_ID");
+const razorpayKeySecret = getEnv("RAZORPAY_KEY_SECRET");
 const invalidImageKitConfiguration =
   !/^private_/.test(imageKitPrivateKey) ||
   /your_imagekit|replace_with/i.test(imageKitPrivateKey);
@@ -55,6 +57,8 @@ const env = {
   imageKitPrivateKey,
   imageKitPublicKey: getEnv("IMAGEKIT_PUBLIC_KEY"),
   imageKitUrlEndpoint: getEnv("IMAGEKIT_URL_ENDPOINT"),
+  razorpayKeyId,
+  razorpayKeySecret,
   googleMapsApiKey,
   geocodingProvider: getEnv(
     "GEOCODING_PROVIDER",
