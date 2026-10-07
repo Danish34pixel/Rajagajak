@@ -52,7 +52,17 @@ const updateProfile = asyncHandler(async (req, res) => {
   user.name = req.body.name.trim();
   user.mobile = String(req.body.mobile).trim();
   user.email = req.body.email.trim().toLowerCase();
-  user.address = req.body.address.trim();
+  user.address =
+    typeof req.body.address === "string"
+      ? req.body.address.trim()
+      : {
+          addressLine1: String(req.body.address.addressLine1 || "").trim(),
+          addressLine2: String(req.body.address.addressLine2 || "").trim(),
+          pincode: String(req.body.pinCode).trim(),
+          city: String(req.body.address.city || "").trim(),
+          state: String(req.body.address.state || "").trim(),
+          country: String(req.body.address.country || "India").trim(),
+        };
   user.pinCode = String(req.body.pinCode).trim();
 
   try {

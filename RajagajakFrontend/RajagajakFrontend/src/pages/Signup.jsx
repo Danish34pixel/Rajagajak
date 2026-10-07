@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth.js";
@@ -9,7 +9,14 @@ const initialForm = {
   name: "",
   mobile: "",
   email: "",
-  address: "",
+  address: {
+    addressLine1: "",
+    addressLine2: "",
+    pincode: "",
+    city: "",
+    state: "",
+    country: "India",
+  },
   pinCode: "",
   password: "",
   confirmPassword: "",
@@ -23,16 +30,107 @@ export default function Signup() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [pincodeStatus, setPincodeStatus] = useState("idle");
+  const [pincodeMessage, setPincodeMessage] = useState("");
   const update = (field) => (event) =>
     setForm({ ...form, [field]: event.target.value });
+  const updateAddress = (field) => (event) =>
+    setForm((current) => ({
+      ...current,
+      address: { ...current.address, [field]: event.target.value },
+    }));
+  const updatePincode = (event) => {
+    const pinCode = event.target.value.replace(/\D/g, "").slice(0, 6);
+    setForm((current) => ({
+      ...current,
+      pinCode,
+      address: {
+        ...current.address,
+        pincode: pinCode,
+        city: "",
+        state: "",
+      },
+    }));
+    setPincodeStatus("idle");
+    setPincodeMessage("");
+  };
+
+  useEffect(() => {
+    if (!/^\d{6}$/.test(form.pinCode)) return undefined;
+
+    let active = true;
+    const controller = new AbortController();
+    const requestTimeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(async () => {
+      setPincodeStatus("loading");
+      try {
+        const response = await fetch(
+          `https://api.postalpincode.in/pincode/${form.pinCode}`,
+          { signal: controller.signal },
+        );
+        if (!response.ok) throw new Error("PIN lookup unavailable");
+
+        const [result] = await response.json();
+        if (result?.Status === "Error") {
+          if (!active) return;
+          setPincodeStatus("invalid");
+          setPincodeMessage(
+            "Invalid pincode. Please check and enter a valid 6-digit pincode.",
+          );
+          return;
+        }
+
+        const postOffice = result?.PostOffice?.[0];
+        if (!postOffice?.District || !postOffice?.State) {
+          throw new Error("PIN lookup returned incomplete location data");
+        }
+        if (!active) return;
+
+        setForm((current) => ({
+          ...current,
+          address: {
+            ...current.address,
+            city: postOffice.District,
+            state: postOffice.State,
+            country: postOffice.Country || "India",
+          },
+        }));
+        setPincodeStatus("success");
+        setPincodeMessage("");
+      } catch {
+        if (!active) return;
+        setPincodeStatus("error");
+        setPincodeMessage(
+          "Couldn't detect location automatically. Please enter your city and state manually.",
+        );
+      } finally {
+        clearTimeout(requestTimeout);
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      clearTimeout(requestTimeout);
+      controller.abort();
+    };
+  }, [form.pinCode]);
+
   const validate = () => {
     if (!form.name.trim()) return "Please enter your full name.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       return "Enter a valid email address.";
     if (!/^[6-9]\d{9}$/.test(form.mobile))
       return "Enter a valid 10-digit mobile number.";
-    if (!form.address.trim()) return "Please enter your address.";
     if (!/^\d{6}$/.test(form.pinCode)) return "PIN code must contain 6 digits.";
+    if (pincodeStatus === "loading")
+      return "Please wait while we detect your city and state.";
+    if (pincodeStatus === "invalid")
+      return "Invalid pincode. Please check and enter a valid 6-digit pincode.";
+    if (!form.address.addressLine1.trim())
+      return "Please enter your address line 1.";
+    if (!form.address.city.trim() || !form.address.state.trim())
+      return "Please enter your city and state.";
     if (!form.password) return "Please create a password.";
     if (form.password !== form.confirmPassword)
       return "Passwords do not match.";
@@ -159,31 +257,94 @@ export default function Signup() {
                   autoComplete="email"
                 />
               </label>
-              <label
-                className="field field--stagger"
-                style={{ "--delay": "150ms" }}
-              >
-                PIN code
-                <input
-                  value={form.pinCode}
-                  onChange={update("pinCode")}
-                  placeholder="6-digit PIN"
-                  inputMode="numeric"
-                />
-              </label>
             </div>
+            <label
+              className="field field--stagger"
+              style={{ "--delay": "150ms" }}
+            >
+              Address Line 1
+              <input
+                value={form.address.addressLine1}
+                onChange={updateAddress("addressLine1")}
+                placeholder="House / Flat / Shop No., Building and Street"
+                autoComplete="address-line1"
+                required
+              />
+            </label>
             <label
               className="field field--stagger"
               style={{ "--delay": "200ms" }}
             >
-              Address
-              <textarea
-                value={form.address}
-                onChange={update("address")}
-                placeholder="Where can we reach you?"
-                rows="3"
+              Address Line 2 (optional)
+              <input
+                value={form.address.addressLine2}
+                onChange={updateAddress("addressLine2")}
+                placeholder="Area, Locality or Landmark"
+                autoComplete="address-line2"
               />
             </label>
+            <div className="form-grid">
+              <label className="field field--stagger">
+                Pincode
+                <input
+                  value={form.pinCode}
+                  onChange={updatePincode}
+                  placeholder="6-digit PIN"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  maxLength={6}
+                  required
+                />
+              </label>
+              <label className="field field--stagger">
+                City
+                <input
+                  value={form.address.city}
+                  onChange={updateAddress("city")}
+                  placeholder={
+                    pincodeStatus === "loading"
+                      ? "Detecting..."
+                      : "Detected from pincode"
+                  }
+                  readOnly={pincodeStatus !== "error"}
+                  required
+                />
+              </label>
+              <label className="field field--stagger">
+                State
+                <input
+                  value={form.address.state}
+                  onChange={updateAddress("state")}
+                  placeholder={
+                    pincodeStatus === "loading"
+                      ? "Detecting..."
+                      : "Detected from pincode"
+                  }
+                  readOnly={pincodeStatus !== "error"}
+                  required
+                />
+              </label>
+              <label className="field field--stagger">
+                Country
+                <input
+                  value={form.address.country}
+                  onChange={updateAddress("country")}
+                  autoComplete="country-name"
+                  required
+                />
+              </label>
+            </div>
+            {(pincodeStatus === "loading" || pincodeMessage) && (
+              <p
+                className="section-subtitle"
+                role={pincodeStatus === "invalid" ? "alert" : "status"}
+                aria-live="polite"
+              >
+                {pincodeStatus === "loading"
+                  ? "Detecting location..."
+                  : pincodeMessage}
+              </p>
+            )}
             <div className="form-grid">
               <PasswordField
                 label="Password"

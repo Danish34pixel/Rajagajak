@@ -2,6 +2,20 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const mobilePattern = /^[6-9]\d{9}$/;
 const pinCodePattern = /^\d{6}$/;
 
+const isValidAddress = (address, { requireLocation = false } = {}) => {
+  if (typeof address === "string") return Boolean(address.trim());
+  if (!address || typeof address !== "object" || Array.isArray(address)) {
+    return false;
+  }
+
+  return Boolean(
+    String(address.addressLine1 || "").trim() &&
+      (!requireLocation ||
+        (String(address.city || "").trim() &&
+          String(address.state || "").trim())),
+  );
+};
+
 const validateSignup = ({
   name,
   mobile,
@@ -19,7 +33,9 @@ const validateSignup = ({
   if (!email || !emailPattern.test(String(email).trim())) {
     errors.push("A valid email is required.");
   }
-  if (!address?.trim()) errors.push("Address is required.");
+  if (!isValidAddress(address, { requireLocation: true })) {
+    errors.push("Address line 1, city, and state are required.");
+  }
   if (!pinCode || !pinCodePattern.test(String(pinCode).trim())) {
     errors.push("PIN code must be exactly 6 digits.");
   }
@@ -40,7 +56,7 @@ const validateProfileUpdate = ({ name, mobile, email, address, pinCode }) => {
   if (!email || !emailPattern.test(String(email).trim())) {
     errors.push("A valid email is required.");
   }
-  if (!address?.trim()) errors.push("Address is required.");
+  if (!isValidAddress(address)) errors.push("Address is required.");
   if (!pinCode || !pinCodePattern.test(String(pinCode).trim())) {
     errors.push("PIN code must be exactly 6 digits.");
   }

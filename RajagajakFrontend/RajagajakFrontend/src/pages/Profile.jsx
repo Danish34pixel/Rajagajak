@@ -23,6 +23,20 @@ const emptyForm = {
   pinCode: "",
 };
 
+const formatAddress = (address) => {
+  if (typeof address === "string") return address;
+  if (!address || typeof address !== "object") return "";
+  return [
+    address.addressLine1,
+    address.addressLine2,
+    address.city,
+    [address.state, address.pincode].filter(Boolean).join(" - "),
+    address.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+};
+
 const roleLabel = (role) =>
   String(role).toLowerCase() === "admin" ? "Administrator" : "User";
 
@@ -65,10 +79,19 @@ export default function Profile() {
   }, [navigate, signOut]);
 
   const updateField = (event) => {
-    setForm((current) => ({
-      ...current,
-      [event.target.name]: event.target.value,
-    }));
+    const { name, value } = event.target;
+    if (name.startsWith("address.")) {
+      const addressField = name.slice("address.".length);
+      setForm((current) => ({
+        ...current,
+        address: {
+          ...(typeof current.address === "object" ? current.address : {}),
+          [addressField]: value,
+        },
+      }));
+      return;
+    }
+    setForm((current) => ({ ...current, [name]: value }));
   };
 
   const save = async (event) => {
@@ -201,12 +224,17 @@ export default function Profile() {
                   <ProfileValue
                     icon={MapPin}
                     label="Complete address"
-                    value={profile.address}
+                    value={formatAddress(profile.address)}
                   />
                   <ProfileValue
                     icon={MapPin}
                     label="Pin code"
-                    value={profile.pinCode}
+                    value={
+                      profile.address &&
+                      typeof profile.address === "object"
+                        ? profile.address.pincode || profile.pinCode
+                        : profile.pinCode
+                    }
                   />
                 </ProfileSection>
                 <ProfileSection title="Account information">
@@ -292,15 +320,64 @@ function ProfileFields({ form, onChange }) {
             required
           />
         </label>
-        <label className="profile-address-field">
-          Complete address
-          <textarea
-            name="address"
-            value={form.address}
-            onChange={onChange}
-            required
-          />
-        </label>
+        {typeof form.address === "string" ? (
+          <label className="profile-address-field">
+            Complete address
+            <textarea
+              name="address"
+              value={form.address}
+              onChange={onChange}
+              required
+            />
+          </label>
+        ) : (
+          <>
+            <label className="profile-address-field">
+              Address line 1
+              <input
+                name="address.addressLine1"
+                value={form.address.addressLine1 || ""}
+                onChange={onChange}
+                required
+              />
+            </label>
+            <label className="profile-address-field">
+              Address line 2
+              <input
+                name="address.addressLine2"
+                value={form.address.addressLine2 || ""}
+                onChange={onChange}
+              />
+            </label>
+            <label>
+              City
+              <input
+                name="address.city"
+                value={form.address.city || ""}
+                onChange={onChange}
+                required
+              />
+            </label>
+            <label>
+              State
+              <input
+                name="address.state"
+                value={form.address.state || ""}
+                onChange={onChange}
+                required
+              />
+            </label>
+            <label>
+              Country
+              <input
+                name="address.country"
+                value={form.address.country || ""}
+                onChange={onChange}
+                required
+              />
+            </label>
+          </>
+        )}
       </div>
     </section>
   );
