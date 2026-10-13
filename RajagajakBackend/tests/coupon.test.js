@@ -102,7 +102,7 @@ test("free shipping and fixed shipping never increase the normal delivery charge
   assert.equal(lowRate.shippingDiscount, 0);
 });
 
-test("free shipping applies to everyone for COD and online despite stale user selections", () => {
+test("free shipping applies to everyone for Razorpay despite stale user selections", () => {
   const item = {
     ...baseItems[0],
     quantityKg: 1,
@@ -115,35 +115,33 @@ test("free shipping applies to everyone for COD and online despite stale user se
     itemTotal: 1,
   };
 
-  for (const paymentMethod of ["cod", "razorpay"]) {
-    const result = evaluate(
-      {
-        type: "free_shipping",
-        discountValue: 0,
-        minimumOrderValue: 1,
-        minimumQuantity: 1,
-        eligibilityType: "everyone",
-        eligibleUsers: ["another-user"],
-        cities: ["Bhopal"],
-        pincodes: ["462001"],
-        radiusKm: 100,
+  const result = evaluate(
+    {
+      type: "free_shipping",
+      discountValue: 0,
+      minimumOrderValue: 1,
+      minimumQuantity: 1,
+      eligibilityType: "everyone",
+      eligibleUsers: ["another-user"],
+      cities: ["Bhopal"],
+      pincodes: ["462001"],
+      radiusKm: 100,
+    },
+    {
+      items: [item],
+      paymentMethod: "razorpay",
+      shipping: {
+        distanceKm: 2.8,
+        shippingCharge: 50,
+        location: { city: "Bhopal", pincode: "462001" },
       },
-      {
-        items: [item],
-        paymentMethod,
-        shipping: {
-          distanceKm: 2.8,
-          shippingCharge: 50,
-          location: { city: "Bhopal", pincode: "462001" },
-        },
-      },
-    );
+    },
+  );
 
-    assert.equal(result.discount, 0);
-    assert.equal(result.shippingDiscount, 50);
-    assert.equal(result.finalShipping, 0);
-    assert.equal(result.pricing.grandTotal, 1);
-  }
+  assert.equal(result.discount, 0);
+  assert.equal(result.shippingDiscount, 50);
+  assert.equal(result.finalShipping, 0);
+  assert.equal(result.pricing.grandTotal, 1);
 });
 
 test("buy two get one uses only purchased eligible quantity", () => {
@@ -191,7 +189,7 @@ test("minimum order, quantity, new-user, specific-user, location, payment, date,
     [{ cities: ["Indore"] }, {}, /city/],
     [{ pincodes: ["452010"] }, {}, /pincode/],
     [{ radiusKm: 2 }, {}, /delivery area/],
-    [{ paymentMethods: ["upi"] }, { paymentMethod: "cod" }, /payment method/],
+    [{ paymentMethods: ["upi"] }, { paymentMethod: "razorpay" }, /payment method/],
     [{ expiryDate: new Date("2025-01-01") }, {}, /expired/],
     [{ startDate: new Date("2030-01-01") }, {}, /not active yet/],
     [{ usageLimit: 1, usedCount: 1 }, {}, /usage limit/],

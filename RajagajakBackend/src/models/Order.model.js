@@ -124,9 +124,10 @@ const orderSchema = new mongoose.Schema(
       default: "pending",
     },
     paymentMethod: {
+      // Keep legacy values so existing MongoDB orders remain readable.
       type: String,
       enum: ["cod", "online", "razorpay"],
-      default: "cod",
+      default: "razorpay",
     },
     paymentId: { type: String, default: "" },
     razorpayOrderId: { type: String, default: "" },

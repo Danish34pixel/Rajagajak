@@ -248,6 +248,8 @@ export default function AdminDashboard() {
       usageLimit: item.usageLimit ?? "",
       perUserLimit: item.perUserLimit ?? "",
       radiusKm: item.radiusKm ?? "",
+      paymentMethods:
+        item.paymentMethods?.filter((method) => method === "razorpay") || [],
       cities: item.cities?.join(", ") || "",
       pincodes: item.pincodes?.join(", ") || "",
     });
@@ -255,7 +257,12 @@ export default function AdminDashboard() {
   };
   const toggleCoupon = async (item) => {
     try {
-      await api.updateCoupon(item._id, { ...item, isActive: !item.isActive });
+      await api.updateCoupon(item._id, {
+        ...item,
+        paymentMethods:
+          item.paymentMethods?.filter((method) => method === "razorpay") || [],
+        isActive: !item.isActive,
+      });
       setNotice(`Coupon ${item.isActive ? "deactivated" : "activated"}`);
       await load();
     } catch (requestError) {
@@ -976,15 +983,11 @@ function CouponSection({
               Payment methods (none = all)
               <select
                 multiple
-                size="4"
+                size="1"
                 value={coupon.paymentMethods}
                 onChange={(e) => updateSelected("paymentMethods", e)}
               >
-                <option value="cod">Cash on delivery</option>
-                <option value="online">Online</option>
-                <option value="upi">UPI</option>
                 <option value="razorpay">Razorpay</option>
-                <option value="stripe">Stripe</option>
               </select>
             </label>
             <label>

@@ -113,7 +113,7 @@ const evaluateCoupon = ({
   items,
   shipping,
   shippingAddress = {},
-  paymentMethod = "cod",
+  paymentMethod = "razorpay",
   now = new Date(),
   userOrderCount = 0,
   userCouponUseCount = 0,

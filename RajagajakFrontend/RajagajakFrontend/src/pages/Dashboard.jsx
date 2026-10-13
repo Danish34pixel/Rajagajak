@@ -6,6 +6,12 @@ import Navbar from "../components/Navbar.jsx";
 import { useCart } from "../context/useCart.js";
 import { useFlyToCart } from "../components/FlyToCart.jsx";
 import * as api from "../services/api.js";
+import {
+  DEFAULT_QUANTITY_KG,
+  formatQuantity,
+  MIN_QUANTITY_KG,
+  getSelectableMaxStockKg,
+} from "../utils/quantity.js";
 
 const sectionVariants = {
   hidden: { opacity: 0, y: 24 },
@@ -69,6 +75,13 @@ export default function Dashboard() {
   }, [products]);
 
   const handleAddToCart = (item, event) => {
+    if (
+      Number.isFinite(Number(item.stock)) &&
+      getSelectableMaxStockKg(item.stock) < MIN_QUANTITY_KG
+    ) {
+      setCartMessage("This product does not have 300 g available.");
+      return;
+    }
     const source = event.currentTarget
       .closest(".product-card")
       ?.querySelector(".product-card-media img");
@@ -77,8 +90,10 @@ export default function Dashboard() {
       imageSrc: item.images?.[0] || item.image || "",
       alt: item.title,
     });
-    addToCart(item, 1);
-    setCartMessage(`${item.title} was added to your cart.`);
+    addToCart(item, DEFAULT_QUANTITY_KG);
+    setCartMessage(
+      `${formatQuantity(DEFAULT_QUANTITY_KG)} of ${item.title} was added to your cart.`,
+    );
     window.clearTimeout(handleAddToCart.timeout);
     handleAddToCart.timeout = window.setTimeout(() => setCartMessage(""), 2200);
   };
@@ -399,6 +414,10 @@ export default function Dashboard() {
                               <del>{money(mrpPerKg)}/kg</del>
                               <strong>{money(pricePerKg)}/kg</strong>
                             </div>
+                            <p className="product-card-description">
+                              {formatQuantity(DEFAULT_QUANTITY_KG)}:{" "}
+                              {money(pricePerKg * DEFAULT_QUANTITY_KG)}
+                            </p>
                             {Number(item.discount || 0) > 0 && (
                               <span className="discount-tag">
                                 {item.discount}% OFF

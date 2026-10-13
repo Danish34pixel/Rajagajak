@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
+import { formatQuantity } from "../utils/quantity.js";
 import * as api from "../services/api.js";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
@@ -108,7 +109,8 @@ export default function OrderDetails() {
                 <div>
                   <strong>{item.productName}</strong>
                   <span>
-                    Quantity {item.quantityKg} KG · {money(item.pricePerKg)}/kg
+                    Quantity {formatQuantity(item.quantityKg)} ·{" "}
+                    {money(item.pricePerKg)}/kg
                   </span>
                   <span>
                     GST {item.gstPercentage}% · {money(item.gstAmount)}

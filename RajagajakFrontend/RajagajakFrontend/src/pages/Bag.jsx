@@ -2,6 +2,11 @@ import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
 import { useCart } from "../context/useCart.js";
+import {
+  DEFAULT_QUANTITY_KG,
+  formatQuantity,
+  getNextQuantityKg,
+} from "../utils/quantity.js";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
@@ -15,7 +20,7 @@ export default function Bag() {
           <div>
             <span className="eyebrow">Your selections</span>
             <h1>Your bag.</h1>
-            <p>Review your KG quantities before checkout.</p>
+            <p>Review your product quantities before checkout.</p>
           </div>
         </div>
         {cartItems.length === 0 ? (
@@ -42,8 +47,8 @@ export default function Bag() {
                   <div className="bag-item-copy">
                     <h2>{item.productName}</h2>
                     <p>
-                      {money(item.pricePerKg)}/kg · Quantity: {item.quantityKg}{" "}
-                      KG
+                      {money(item.pricePerKg)}/kg · Quantity:{" "}
+                      {formatQuantity(item.quantityKg)}
                     </p>
                     <strong>{money(item.pricePerKg)}/kg</strong>
                     <div className="bag-item-actions">
@@ -51,23 +56,39 @@ export default function Bag() {
                         <button
                           type="button"
                           aria-label={`Decrease ${item.productName}`}
+                          disabled={item.quantityKg <= DEFAULT_QUANTITY_KG}
                           onClick={() =>
                             updateQuantityKg(
                               item.itemKey,
-                              Math.max(0.1, item.quantityKg - 0.5),
+                              getNextQuantityKg(
+                                item.quantityKg,
+                                -1,
+                                item.stockKg ?? 10,
+                              ),
                             )
                           }
                         >
                           <Minus size={15} />
                         </button>
-                        <span>{item.quantityKg} KG</span>
+                        <span>{formatQuantity(item.quantityKg)}</span>
                         <button
                           type="button"
                           aria-label={`Increase ${item.productName}`}
+                          disabled={
+                            getNextQuantityKg(
+                              item.quantityKg,
+                              1,
+                              item.stockKg ?? 10,
+                            ) <= item.quantityKg
+                          }
                           onClick={() =>
                             updateQuantityKg(
                               item.itemKey,
-                              item.quantityKg + 0.5,
+                              getNextQuantityKg(
+                                item.quantityKg,
+                                1,
+                                item.stockKg ?? 10,
+                              ),
                             )
                           }
                         >
