@@ -62,7 +62,7 @@ const couponSchema = new mongoose.Schema(
     radiusKm: { type: Number, default: null, min: 0 },
     paymentMethods: {
       type: [String],
-      enum: ["cod", "online", "upi", "razorpay", "stripe"],
+      enum: ["razorpay"],
       default: [],
     },
     allowedDays: {

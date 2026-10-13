@@ -11,6 +11,13 @@ import Navbar from "../components/Navbar.jsx";
 import { useCart } from "../context/useCart.js";
 import { useFlyToCart } from "../components/FlyToCart.jsx";
 import * as api from "../services/api.js";
+import {
+  DEFAULT_QUANTITY_KG,
+  formatQuantity,
+  getNextQuantityKg,
+  getQuantityOptions,
+  getSelectableMaxStockKg,
+} from "../utils/quantity.js";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
@@ -23,7 +30,7 @@ export default function ProductDetails() {
   const [product, setProduct] = useState(null);
   const [error, setError] = useState("");
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedKg, setSelectedKg] = useState(1);
+  const [selectedKg, setSelectedKg] = useState(DEFAULT_QUANTITY_KG);
   const [openSection, setOpenSection] = useState("description");
   const [actionMessage, setActionMessage] = useState("");
 
@@ -39,7 +46,7 @@ export default function ProductDetails() {
   }, [id]);
 
   useEffect(() => {
-    setSelectedKg(1);
+    setSelectedKg(DEFAULT_QUANTITY_KG);
   }, [id]);
 
   const images = useMemo(
@@ -61,12 +68,15 @@ export default function ProductDetails() {
     product?.description ||
     product?.bulletPoints?.join(" ") ||
     "No product description is available yet.";
-  const kgOptions = [1, 2, 3, 5, 10];
-  const maxStock = hasStock && stock > 0 ? stock : 10;
+  const maxStock = hasStock
+    ? getSelectableMaxStockKg(stock)
+    : getSelectableMaxStockKg(10);
+  const kgOptions = getQuantityOptions(maxStock);
+  const selectable = kgOptions.length > 0;
 
   const addProduct = (buyNow = false) => {
-    const nextQuantity = Math.max(1, Math.min(selectedKg, maxStock));
-    if (hasStock && stock <= 0) {
+    const nextQuantity = Math.min(selectedKg, maxStock);
+    if (!selectable || (hasStock && stock <= 0)) {
       setActionMessage("This product is currently out of stock.");
       return;
     }
@@ -79,7 +89,7 @@ export default function ProductDetails() {
     if (buyNow) navigate("/checkout");
     else
       setActionMessage(
-        `${nextQuantity} KG of ${product.title} was added to your bag.`,
+        `${formatQuantity(nextQuantity)} of ${product.title} was added to your bag.`,
       );
   };
 
@@ -118,11 +128,13 @@ export default function ProductDetails() {
                 <strong>{money(product.finalPrice)}/kg</strong>
               </div>
               {hasStock && (
-                <p className="kg-stock">Available stock: {stock} KG</p>
+                <p className="kg-stock">
+                  Available stock: {formatQuantity(stock)}
+                </p>
               )}
               <div className="kg-selector">
                 <span className="selection-label">
-                  How many KG do you need?
+                  How much do you need?
                 </span>
                 <div className="kg-preset-group">
                   {kgOptions.map((value) => (
@@ -132,7 +144,7 @@ export default function ProductDetails() {
                       className={selectedKg === value ? "selected" : ""}
                       onClick={() => setSelectedKg(Math.min(value, maxStock))}
                     >
-                      {value} KG
+                      {formatQuantity(value)}
                     </button>
                   ))}
                 </div>
@@ -140,19 +152,25 @@ export default function ProductDetails() {
                   <button
                     type="button"
                     aria-label="Decrease KG quantity"
+                    disabled={selectedKg <= DEFAULT_QUANTITY_KG}
                     onClick={() =>
-                      setSelectedKg((current) => Math.max(1, current - 1))
+                      setSelectedKg((current) =>
+                        getNextQuantityKg(current, -1, maxStock),
+                      )
                     }
                   >
                     <ChevronLeft size={15} />
                   </button>
-                  <span>{selectedKg} KG</span>
+                  <span>{formatQuantity(selectedKg)}</span>
                   <button
                     type="button"
                     aria-label="Increase KG quantity"
+                    disabled={
+                      getNextQuantityKg(selectedKg, 1, maxStock) <= selectedKg
+                    }
                     onClick={() =>
                       setSelectedKg((current) =>
-                        Math.min(current + 1, maxStock),
+                        getNextQuantityKg(current, 1, maxStock),
                       )
                     }
                   >
@@ -161,14 +179,14 @@ export default function ProductDetails() {
                 </div>
               </div>
               <p className="kg-note">
-                Selected: {selectedKg} KG · Total:{" "}
+                Selected: {formatQuantity(selectedKg)} · Total:{" "}
                 {money(product.finalPrice * selectedKg)}
               </p>
               <div className="product-actions">
                 <button
                   className="primary-action"
                   type="button"
-                  disabled={hasStock && stock <= 0}
+                  disabled={!selectable || (hasStock && stock <= 0)}
                   onClick={() => addProduct()}
                 >
                   <ShoppingBag size={17} /> Add to cart
@@ -176,7 +194,7 @@ export default function ProductDetails() {
                 <button
                   className="outline-action"
                   type="button"
-                  disabled={hasStock && stock <= 0}
+                  disabled={!selectable || (hasStock && stock <= 0)}
                   onClick={() => addProduct(true)}
                 >
                   Buy it now

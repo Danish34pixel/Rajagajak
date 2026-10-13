@@ -52,13 +52,7 @@ const normalize = (body) => {
   ].includes(type);
   const objectIdsValid = (values) =>
     values.every((value) => mongoose.Types.ObjectId.isValid(value));
-  const supportedPaymentMethods = [
-    "cod",
-    "online",
-    "upi",
-    "razorpay",
-    "stripe",
-  ];
+  const supportedPaymentMethods = ["razorpay"];
   if (
     !/^[A-Za-z0-9_-]+$/.test(String(body.code || "").trim()) ||
     !String(body.title || "").trim() ||
@@ -446,7 +440,7 @@ const applyCoupon = asyncHandler(async (req, res) => {
       items,
       shipping,
       shippingAddress: delivery,
-      paymentMethod: req.body.paymentMethod || "cod",
+      paymentMethod: "razorpay",
       userId,
       userOrderCount,
       userCouponUseCount: redemption?.count || 0,

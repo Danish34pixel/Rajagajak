@@ -1,4 +1,3 @@
-const crypto = require("crypto");
 const mongoose = require("mongoose");
 const Razorpay = require("razorpay");
 const env = require("../config/env");
@@ -11,6 +10,10 @@ const { errorResponse, successResponse } = require("../utils/response");
 const { calculateItems, buildPricing } = require("./order.controller");
 const { calculateDelivery } = require("../services/shipping.service");
 const { evaluateCoupon } = require("../services/coupon.service");
+const {
+  verifyRazorpaySignature,
+  isCapturedRazorpayPayment,
+} = require("../services/razorpay-payment.service");
 
 const paymentClient =
   env.razorpayKeyId && env.razorpayKeySecret
@@ -170,6 +173,13 @@ const buildPaymentOrder = async ({
 };
 
 const createRazorpayOrder = asyncHandler(async (req, res) => {
+  if (String(req.body.paymentMethod || "").trim().toLowerCase() !== "razorpay") {
+    return errorResponse(
+      res,
+      "Razorpay is the only supported payment method.",
+      400,
+    );
+  }
   if (!paymentClient) {
     return errorResponse(
       res,
@@ -208,7 +218,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
       notes: {
         clientRequestId,
         userId: String(req.user.sub),
-        paymentType: "online",
+        paymentType: "razorpay",
       },
     });
 
@@ -242,6 +252,13 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
 });
 
 const verifyPayment = asyncHandler(async (req, res) => {
+  if (String(req.body.paymentMethod || "").trim().toLowerCase() !== "razorpay") {
+    return errorResponse(
+      res,
+      "Razorpay is the only supported payment method.",
+      400,
+    );
+  }
   if (!paymentClient) {
     return errorResponse(
       res,
@@ -263,13 +280,28 @@ const verifyPayment = asyncHandler(async (req, res) => {
     return errorResponse(res, "Payment verification data is incomplete.", 400);
   }
 
-  const generatedSignature = crypto
-    .createHmac("sha256", env.razorpayKeySecret)
-    .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-    .digest("hex");
-
-  if (generatedSignature !== razorpaySignature) {
+  if (
+    !verifyRazorpaySignature({
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
+      keySecret: env.razorpayKeySecret,
+    })
+  ) {
     return errorResponse(res, "Payment verification failed.", 400);
+  }
+
+  const [gatewayOrder, gatewayPayment] = await Promise.all([
+    paymentClient.orders.fetch(razorpayOrderId),
+    paymentClient.payments.fetch(razorpayPaymentId),
+  ]);
+  if (
+    gatewayOrder.id !== razorpayOrderId ||
+    gatewayPayment.order_id !== razorpayOrderId ||
+    gatewayOrder.notes?.clientRequestId !== clientRequestId ||
+    gatewayOrder.notes?.userId !== String(req.user.sub)
+  ) {
+    return errorResponse(res, "Payment does not match this order request.", 400);
   }
 
   const existingOrder = await Order.findOne({
@@ -277,6 +309,25 @@ const verifyPayment = asyncHandler(async (req, res) => {
     userId: req.user.sub,
   });
   if (existingOrder) {
+    const expectedAmount = Math.round(
+      Number(existingOrder.pricing.grandTotal) * 100,
+    );
+    if (
+      existingOrder.paymentStatus !== "paid" ||
+      existingOrder.paymentMethod !== "razorpay" ||
+      existingOrder.razorpayOrderId !== razorpayOrderId ||
+      existingOrder.razorpayPaymentId !== razorpayPaymentId ||
+      !isCapturedRazorpayPayment({
+        order: gatewayOrder,
+        payment: gatewayPayment,
+        paymentId: razorpayPaymentId,
+        expectedAmount,
+        clientRequestId,
+        userId: req.user.sub,
+      })
+    ) {
+      return errorResponse(res, "Payment verification failed.", 400);
+    }
     return successResponse(res, existingOrder, "Payment verified and order already exists", 200);
   }
 
@@ -288,6 +339,25 @@ const verifyPayment = asyncHandler(async (req, res) => {
       customerLocation: req.body.customerLocation,
       couponCode: req.body.couponCode,
     });
+    const expectedAmount = Math.round(
+      Number(orderPayload.pricing.grandTotal) * 100,
+    );
+    if (
+      !isCapturedRazorpayPayment({
+        order: gatewayOrder,
+        payment: gatewayPayment,
+        paymentId: razorpayPaymentId,
+        expectedAmount,
+        clientRequestId,
+        userId: req.user.sub,
+      })
+    ) {
+      return errorResponse(
+        res,
+        "Razorpay has not confirmed a successful payment for this order.",
+        400,
+      );
+    }
 
     const orderDocument = {
       orderNumber: getOrderNumber(),

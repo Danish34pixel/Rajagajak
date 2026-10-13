@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import * as api from "../services/api.js";
+import { formatQuantity } from "../utils/quantity.js";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 const labels = {
@@ -146,7 +147,8 @@ export default function AdminOrderSection({ orders, reload, setError }) {
                 <span>
                   {order.items
                     .map(
-                      (item) => `${item.productName} · ${item.quantityKg} KG`,
+                      (item) =>
+                        `${item.productName} · ${formatQuantity(item.quantityKg)}`,
                     )
                     .join(" · ")}
                 </span>

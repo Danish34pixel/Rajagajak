@@ -79,6 +79,14 @@ test("invalid schedule, limits, target IDs, pincode, and payment values are reje
     normalizeCoupon(validCoupon({ paymentMethods: ["bitcoin"] })),
     null,
   );
+  assert.equal(
+    normalizeCoupon(validCoupon({ paymentMethods: ["cod"] })),
+    null,
+  );
+  assert.equal(
+    normalizeCoupon(validCoupon({ paymentMethods: ["online"] })),
+    null,
+  );
 });
 
 test("specific-user coupons require a valid selected customer", () => {

@@ -1,6 +1,4 @@
-const API_URL = (
-  import.meta.env.VITE_API_URL || "https://rajagajak-2.onrender.com"
-)
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000")
   .trim()
   .replace(/\/+$/, "");
 const API_ROOT = `${API_URL}/api/v1`;
@@ -113,8 +111,6 @@ export const applyCoupon = (code, checkout) =>
   );
 export const products = () => request("/products");
 export const product = (id) => request(`/products/${id}`);
-export const createOrder = (order) =>
-  request("/orders", { method: "POST", body: JSON.stringify(order) });
 export const createRazorpayOrder = (order) =>
   request("/payment/create-order", {
     method: "POST",

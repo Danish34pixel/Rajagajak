@@ -7,6 +7,7 @@ import { useCart } from "../context/useCart.js";
 import { useAuth } from "../context/useAuth.js";
 import * as api from "../services/api.js";
 import { calculateCheckoutGrandTotal } from "../utils/checkoutPricing.js";
+import { formatQuantity } from "../utils/quantity.js";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 const CHECKOUT_DRAFT_KEY = "rajagajak_checkout_draft";
@@ -127,7 +128,6 @@ export default function Checkout() {
   const [gettingLocation, setGettingLocation] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cod");
   const [coupons, setCoupons] = useState([]);
   const [couponError, setCouponError] = useState("");
   const [selectedCouponCode, setSelectedCouponCode] = useState("");
@@ -429,8 +429,7 @@ export default function Checkout() {
         })),
         deliveryAddress: deliveryAddressPayload(address),
         ...(deliveryMode === "gps" ? { customerLocation } : {}),
-        paymentMethod:
-          selectedPaymentMethod === "online" ? "razorpay" : "cod",
+        paymentMethod: "razorpay",
       });
       setAppliedCouponResult({ key: cartKey, data: response.data });
       setSelectedCouponCode(response.data.coupon.code);
@@ -512,11 +511,9 @@ export default function Checkout() {
         "We couldn't calculate delivery charges. Please try again or enter your delivery address.",
       );
 
-    const paymentMethod =
-      selectedPaymentMethod === "online" ? "razorpay" : "cod";
     const orderPayload = {
       clientRequestId: crypto.randomUUID(),
-      paymentMethod,
+      paymentMethod: "razorpay",
       shippingAddress: deliveryAddressPayload(address),
       ...(deliveryMode === "gps" ? { customerLocation } : {}),
       items: cartItems.map((item) => ({
@@ -528,16 +525,6 @@ export default function Checkout() {
 
     setSubmitting(true);
     try {
-      if (paymentMethod === "cod") {
-        const response = await api.createOrder(orderPayload);
-        sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
-        clearCart();
-        navigate(`/order-success/${response.data._id}`, {
-          state: { order: response.data },
-        });
-        return;
-      }
-
       const configResponse = await api.paymentConfig();
       const razorpayKeyId = configResponse.keyId;
       if (!razorpayKeyId) {
@@ -848,7 +835,7 @@ export default function Checkout() {
                       Price: {money(item.pricePerKg || item.unitPrice || 0)}/kg
                     </span>
                     <span>
-                      Quantity {item.quantityKg} KG · GST{" "}
+                      Quantity {formatQuantity(item.quantityKg)} · GST{" "}
                       {item.gstPercentage || 0}% · {money(item.gstAmount || 0)}
                     </span>
                   </div>
@@ -1068,7 +1055,7 @@ export default function Checkout() {
 
             <div className="checkout-payment-methods" style={{ margin: "16px 0" }}>
               <h3 style={{ marginBottom: 12 }}>Payment Method</h3>
-              <label
+              <div
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1076,49 +1063,16 @@ export default function Checkout() {
                   padding: "10px 12px",
                   border: "1px solid #e5d9c4",
                   borderRadius: 10,
-                  background:
-                    selectedPaymentMethod === "cod" ? "#fff7ef" : "transparent",
-                  marginBottom: 8,
+                  background: "#fff7ef",
                 }}
               >
-                <input
-                  type="radio"
-                  checked={selectedPaymentMethod === "cod"}
-                  onChange={() => setSelectedPaymentMethod("cod")}
-                />
                 <span>
-                  <strong>Cash on Delivery</strong>
-                  <div style={{ fontSize: 12, color: "#6b7280" }}>
-                    Pay when your order is delivered.
-                  </div>
-                </span>
-              </label>
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  border: "1px solid #e5d9c4",
-                  borderRadius: 10,
-                  background:
-                    selectedPaymentMethod === "online"
-                      ? "#fff7ef"
-                      : "transparent",
-                }}
-              >
-                <input
-                  type="radio"
-                  checked={selectedPaymentMethod === "online"}
-                  onChange={() => setSelectedPaymentMethod("online")}
-                />
-                <span>
-                  <strong>Online Payment</strong>
+                  <strong>Razorpay</strong>
                   <div style={{ fontSize: 12, color: "#6b7280" }}>
                     Pay securely using UPI, cards, and net banking.
                   </div>
                 </span>
-              </label>
+              </div>
             </div>
 
             <button
@@ -1133,12 +1087,8 @@ export default function Checkout() {
               }
             >
               {submitting
-                ? selectedPaymentMethod === "online"
-                  ? "Processing payment..."
-                  : "Placing order..."
-                : selectedPaymentMethod === "online"
-                  ? `Pay ${money(currentGrandTotal)}`
-                  : "Place Order"}
+                ? "Processing payment..."
+                : `Pay ${money(currentGrandTotal)}`}
             </button>
           </aside>
         </form>

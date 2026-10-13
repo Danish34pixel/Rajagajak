@@ -44,6 +44,12 @@ available at `/api/payment/*` for direct compatibility). The frontend must
 only receive the public key ID; the secret remains server-only in the backend
 environment.
 
+Orders are persisted only after the backend verifies the Razorpay signature and
+confirms that the matching payment is fully captured for the expected amount.
+The legacy `POST /api/v1/orders` endpoint rejects direct order creation; use the
+Razorpay create-order and verify endpoints instead. Legacy payment values remain
+in the order schema for compatibility with existing MongoDB order history.
+
 Upload an image with `POST /api/v1/images` using a multipart form field named
 `image`. The file is uploaded to ImageKit under `/rajagajak`, and its URL and
 metadata are stored in MongoDB.
@@ -74,7 +80,8 @@ Admin coupon CRUD is under `/api/v1/admin/coupons`; the authenticated customer
 preview endpoint is `POST /api/coupons/apply` (also available under
 `/api/v1/coupons/apply`). Preview requests include cart items, delivery
 address/location, and payment method; the backend reloads product prices,
-calculates delivery, and validates the coupon. Orders revalidate and recalculate
+calculates delivery, and validates the coupon. Razorpay is the only supported
+payment method for coupon eligibility. Orders revalidate and recalculate
 the coupon inside a MongoDB transaction, then snapshot coupon, tax, shipping,
 and discount values. The transaction also reserves global and per-user usage
 and decrements inventory atomically. Coupon order creation therefore requires

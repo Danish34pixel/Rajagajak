@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { CartContext } from "./cart-context.js";
 import { useAuth } from "./useAuth.js";
+import {
+  DEFAULT_QUANTITY_KG,
+  getSelectableMaxStockKg,
+  MIN_QUANTITY_KG,
+  normalizeQuantityKg,
+} from "../utils/quantity.js";
 
 const GUEST_CART_KEY = "rajagajak_cart_guest";
 
@@ -29,7 +35,9 @@ const normalizeItem = (item) => ({
   ),
   discountPercentage: Number(item.discountPercentage ?? item.discount ?? 0),
   gstPercentage: Number(item.gstPercentage ?? 0),
-  quantityKg: Number(item.quantityKg ?? item.quantity ?? 1),
+  quantityKg: normalizeQuantityKg(
+    item.quantityKg ?? item.quantity ?? DEFAULT_QUANTITY_KG,
+  ),
   stockKg: item.stockKg ?? item.stock ?? null,
 });
 
@@ -50,7 +58,7 @@ const mergeCartItems = (primaryItems, guestItems) => {
       ...existing,
       quantityKg:
         stockKg !== null && stockKg !== undefined
-          ? Math.min(quantityKg, Number(stockKg))
+          ? Math.min(quantityKg, getSelectableMaxStockKg(stockKg))
           : quantityKg,
       stockKg,
     });
@@ -85,14 +93,18 @@ export function CartProvider({ children }) {
     localStorage.removeItem(GUEST_CART_KEY);
   }, [cartKey, user]);
 
-  const addToCart = (product, quantityKg = 1) => {
+  const addToCart = (product, quantityKg = DEFAULT_QUANTITY_KG) => {
     const productId = product._id || product.id;
     const stockKg = Number(product.stock ?? product.stockKg);
     const hasStock = Number.isFinite(stockKg);
+    const maxQuantity = hasStock
+      ? getSelectableMaxStockKg(stockKg)
+      : Infinity;
+    if (maxQuantity < MIN_QUANTITY_KG) return;
     const existing = cartItems.find((item) => item.productId === productId);
     const nextQuantity = existing
-      ? existing.quantityKg + quantityKg
-      : quantityKg;
+      ? existing.quantityKg + normalizeQuantityKg(quantityKg)
+      : normalizeQuantityKg(quantityKg);
     const normalized = normalizeItem({
       ...(existing || {}),
       productId,
@@ -102,7 +114,9 @@ export function CartProvider({ children }) {
       mrpPerKg: product.mrp ?? product.mrpPerKg,
       discountPercentage: product.discount,
       gstPercentage: product.gstPercentage,
-      quantityKg: hasStock ? Math.min(nextQuantity, stockKg) : nextQuantity,
+      quantityKg: hasStock
+        ? Math.min(nextQuantity, maxQuantity)
+        : nextQuantity,
       stockKg: hasStock ? stockKg : null,
     });
     persist(
@@ -115,12 +129,15 @@ export function CartProvider({ children }) {
   };
 
   const updateQuantityKg = (itemKey, quantityKg) => {
-    if (quantityKg <= 0) return removeFromCart(itemKey);
     const item = cartItems.find((cartItem) => cartItem.itemKey === itemKey);
+    const normalizedQuantity = normalizeQuantityKg(quantityKg);
     const nextQuantity =
       item?.stockKg !== null && item?.stockKg !== undefined
-        ? Math.min(quantityKg, Number(item.stockKg))
-        : quantityKg;
+        ? Math.min(
+            normalizedQuantity,
+            getSelectableMaxStockKg(item.stockKg),
+          )
+        : normalizedQuantity;
     persist(
       cartItems.map((cartItem) =>
         cartItem.itemKey === itemKey
@@ -133,10 +150,7 @@ export function CartProvider({ children }) {
   const removeFromCart = (itemKey) =>
     persist(cartItems.filter((item) => item.itemKey !== itemKey));
   const clearCart = () => persist([]);
-  const cartCount = cartItems.reduce(
-    (total, item) => total + item.quantityKg,
-    0,
-  );
+  const cartCount = cartItems.length;
   const cartTotal = cartItems.reduce(
     (total, item) => total + item.pricePerKg * item.quantityKg,
     0,
