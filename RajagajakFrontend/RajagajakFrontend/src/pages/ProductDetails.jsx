@@ -35,10 +35,6 @@ export default function ProductDetails() {
   const [actionMessage, setActionMessage] = useState("");
 
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, [id]);
-
-  useEffect(() => {
     api
       .product(id)
       .then((response) => setProduct(response.data))

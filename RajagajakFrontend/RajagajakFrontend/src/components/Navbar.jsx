@@ -120,6 +120,16 @@ export default function Navbar({ admin = false }) {
             alt="Raja Gajak"
           />
         </Link>
+        {!admin && (
+          <div className="navbar-content-links">
+            <Link className="navbar-about-link" to="/about">
+              About Us
+            </Link>
+            <Link className="navbar-about-link" to="/blog">
+              Blog
+            </Link>
+          </div>
+        )}
 
         <div
           className={`navbar-search-wrap ${mobileSearchOpen ? "mobile-open" : ""}`}

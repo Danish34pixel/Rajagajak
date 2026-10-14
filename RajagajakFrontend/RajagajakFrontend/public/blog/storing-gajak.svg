@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#fffaf0"/><stop offset="1" stop-color="#f2e2bd"/></linearGradient>
+    <linearGradient id="glass" x2="0" y2="1"><stop stop-color="#fff" stop-opacity=".78"/><stop offset="1" stop-color="#ead9ae" stop-opacity=".6"/></linearGradient>
+    <pattern id="seed" width="25" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(-15)"><ellipse cx="7" cy="8" rx="3.5" ry="1.7" fill="#fff0ba"/><ellipse cx="20" cy="18" rx="3" ry="1.5" fill="#915528"/></pattern>
+  </defs>
+  <rect width="800" height="480" rx="28" fill="url(#bg)"/>
+  <circle cx="620" cy="102" r="115" fill="#fff" opacity=".35"/>
+  <ellipse cx="404" cy="380" rx="208" ry="34" fill="#80512d" opacity=".12"/>
+  <rect x="242" y="133" width="326" height="228" rx="35" fill="url(#glass)" stroke="#fff" stroke-width="8"/>
+  <path d="M247 236h316v88c0 17-15 31-34 31H282c-20 0-35-14-35-31z" fill="#d3a456" opacity=".55"/>
+  <g fill="#d9ab57" stroke="#fbe6a6" stroke-width="4">
+    <rect x="285" y="236" width="220" height="72" rx="16" transform="rotate(-7 285 236)"/>
+    <rect x="300" y="191" width="196" height="65" rx="15" transform="rotate(5 300 191)"/>
+  </g>
+  <g><rect x="285" y="236" width="220" height="72" rx="16" transform="rotate(-7 285 236)" fill="url(#seed)"/><rect x="300" y="191" width="196" height="65" rx="15" transform="rotate(5 300 191)" fill="url(#seed)"/></g>
+  <rect x="222" y="115" width="366" height="43" rx="15" fill="#b96d30"/>
+  <rect x="245" y="98" width="320" height="26" rx="10" fill="#d79648"/>
+  <path d="M277 150c-24 44-24 129-7 169" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".65"/>
+  <g fill="#ae672d"><ellipse cx="180" cy="315" rx="18" ry="10" transform="rotate(-30 180 315)"/><ellipse cx="619" cy="327" rx="17" ry="9" transform="rotate(20 619 327)"/></g>
+</svg>

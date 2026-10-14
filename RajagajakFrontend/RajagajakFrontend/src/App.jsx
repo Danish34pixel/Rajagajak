@@ -11,24 +11,37 @@ import OrderDetails from "./pages/OrderDetails.jsx";
 import OrderSuccess from "./pages/OrderSuccess.jsx";
 import AdminOrderDetails from "./pages/AdminOrderDetails.jsx";
 import Profile from "./pages/Profile.jsx";
+import About from "./pages/About.jsx";
+import TermsAndConditions from "./pages/TermsAndConditions.jsx";
+import Blog from "./pages/Blog.jsx";
+import BlogArticle from "./pages/BlogArticle.jsx";
 import ProtectedRoute, {
   AdminRoute,
   CheckoutRoute,
 } from "./components/ProtectedRoute.jsx";
 import OrderStatusNotification from "./components/OrderStatusNotification.jsx";
 import { FlyToCartProvider } from "./components/FlyToCart.jsx";
+import ScrollToTop from "./components/ScrollToTop.jsx";
 import "./App.css";
 
 function App() {
   return (
     <BrowserRouter>
       <FlyToCartProvider>
+        <ScrollToTop />
         <OrderStatusNotification />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/about" element={<About />} />
+          <Route
+            path="/terms-and-conditions"
+            element={<TermsAndConditions />}
+          />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogArticle />} />
           <Route path="/products/:id" element={<ProductDetails />} />
           <Route path="/bag" element={<Bag />} />
           <Route element={<CheckoutRoute />}>

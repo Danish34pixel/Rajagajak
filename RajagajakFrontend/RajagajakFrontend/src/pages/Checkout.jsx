@@ -529,7 +529,7 @@ export default function Checkout() {
       const razorpayKeyId = configResponse.keyId;
       if (!razorpayKeyId) {
         throw new Error(
-          "Razorpay payment is currently unavailable. Please try again later.",
+          "Razorpay payment is temporarily unavailable. Please contact support or try again later.",
         );
       }
       await loadRazorpayCheckoutScript();

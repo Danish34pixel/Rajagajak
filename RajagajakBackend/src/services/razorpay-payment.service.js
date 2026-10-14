@@ -40,4 +40,52 @@ const isCapturedRazorpayPayment = ({
   payment.amount === expectedAmount &&
   payment.currency === "INR";
 
-module.exports = { verifyRazorpaySignature, isCapturedRazorpayPayment };
+const getRazorpayConfigurationIssue = ({ keyId, keySecret }) => {
+  if (!keyId || !keySecret) return "missing_credentials";
+  if (keyId !== keyId.trim() || keySecret !== keySecret.trim())
+    return "credential_whitespace";
+  if (!/^rzp_(test|live)_[A-Za-z0-9]+$/.test(keyId))
+    return "invalid_key_id";
+  if (/\s/.test(keySecret)) return "invalid_key_secret_format";
+  if (/your_|replace_with|example/i.test(keyId + keySecret))
+    return "placeholder_credentials";
+  return null;
+};
+
+const safeProviderField = (value, credentials) => {
+  if (typeof value !== "string") return null;
+  let safeValue = value.replace(/[\r\n\t]/g, " ").slice(0, 300);
+  for (const credential of credentials) {
+    if (credential) safeValue = safeValue.split(credential).join("[REDACTED]");
+  }
+  return safeValue
+    .replace(/\b(Basic|Bearer)\s+\S+/gi, "$1 [REDACTED]")
+    .trim() || null;
+};
+
+const getRazorpayErrorDiagnostics = (
+  error,
+  { keyId = "", keySecret = "" } = {},
+) => {
+  const providerError =
+    error?.error || error?.response?.data?.error || error || {};
+  const statusCode =
+    Number(error?.statusCode || error?.status || error?.response?.status) ||
+    null;
+  return {
+    code: safeProviderField(providerError.code, [keyId, keySecret]),
+    description: safeProviderField(providerError.description, [
+      keyId,
+      keySecret,
+    ]),
+    httpStatus: statusCode,
+    reason: safeProviderField(providerError.reason, [keyId, keySecret]),
+  };
+};
+
+module.exports = {
+  verifyRazorpaySignature,
+  isCapturedRazorpayPayment,
+  getRazorpayConfigurationIssue,
+  getRazorpayErrorDiagnostics,
+};

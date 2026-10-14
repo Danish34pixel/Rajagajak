@@ -54,6 +54,27 @@ Upload an image with `POST /api/v1/images` using a multipart form field named
 `image`. The file is uploaded to ImageKit under `/rajagajak`, and its URL and
 metadata are stored in MongoDB.
 
+## Blog
+
+Public blog endpoints are `GET /api/v1/blog` (optional `q`, `category`,
+`page`, and `limit` query parameters), `GET /api/v1/blog/:slug`, and
+`GET /api/v1/blog/:slug/related`. Lists return `{ data, pagination }`; public
+queries only include published articles whose `publishedAt` is in the past.
+Admin article management is under `/api/v1/admin/blog`: `GET` lists articles,
+`GET /:id` fetches one article (including content), `POST` creates a draft,
+`PUT /:id` updates editable fields, and `DELETE /:id`
+deletes one. `POST /:id/publish` publishes immediately or accepts a future
+`publishedAt` for scheduled visibility; `POST /:id/unpublish` returns it to
+draft. Rich text is sanitized server-side and article state/audit fields cannot
+be mass-assigned. Upload article images through
+`POST /api/v1/admin/blog/images` as multipart field `image`; this uses the
+existing ImageKit storage and returns `{ data: { url } }`.
+
+To import the six initial blog posts as unpublished drafts, run
+`npm run seed:blog` with the backend `.env` configured and at least one admin
+account in MongoDB. The script only inserts missing slugs and never publishes
+or overwrites existing articles; it is not run automatically.
+
 ## Delivery pricing
 
 Authenticated checkout calls `POST /api/v1/orders/shipping-quote` with either

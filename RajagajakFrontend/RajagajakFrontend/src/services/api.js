@@ -1,4 +1,4 @@
-const API_URL = (import.meta.env.VITE_API_URL || "https://api.rajagajak.tech/")
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:5000")
   .trim()
   .replace(/\/+$/, "");
 const API_ROOT = `${API_URL}/api/v1`;
@@ -70,6 +70,50 @@ export const getCurrentUser = () => {
 export const logout = () => {};
 
 export const adminProducts = () => request("/admin/products");
+export const publicBlogArticles = (params = {}) => {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, String(value));
+    }
+  });
+  return request(`/blog${query.size ? `?${query}` : ""}`);
+};
+export const publicBlogArticle = (slug) =>
+  request(`/blog/${encodeURIComponent(slug)}`);
+export const adminBlogArticles = (params = {}) => {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      query.set(key, String(value));
+    }
+  });
+  return request(`/admin/blog${query.size ? `?${query}` : ""}`);
+};
+export const adminBlogArticle = (id) =>
+  request(`/admin/blog/${encodeURIComponent(id)}`);
+export const createBlogArticle = (article) =>
+  request("/admin/blog", { method: "POST", body: JSON.stringify(article) });
+export const updateBlogArticle = (id, article) =>
+  request(`/admin/blog/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(article),
+  });
+export const deleteBlogArticle = (id) =>
+  request(`/admin/blog/${encodeURIComponent(id)}`, { method: "DELETE" });
+export const publishBlogArticle = (id) =>
+  request(`/admin/blog/${encodeURIComponent(id)}/publish`, {
+    method: "POST",
+  });
+export const unpublishBlogArticle = (id) =>
+  request(`/admin/blog/${encodeURIComponent(id)}/unpublish`, {
+    method: "POST",
+  });
+export const uploadBlogImage = (file) => {
+  const form = new FormData();
+  form.append("image", file);
+  return request("/admin/blog/images", { method: "POST", body: form });
+};
 export const createProduct = (product) =>
   request("/admin/products", { method: "POST", body: JSON.stringify(product) });
 export const updateProduct = (id, product) =>

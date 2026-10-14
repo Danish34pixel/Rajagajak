@@ -1,0 +1,126 @@
+.terms-main {
+  width: min(100% - 48px, 920px);
+  margin: 0 auto;
+  padding: 54px 0 88px;
+}
+
+.terms-heading {
+  margin-bottom: 30px;
+  padding: clamp(28px, 5vw, 48px);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 42%, white);
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse at 92% 8%, rgba(247, 201, 72, 0.2), transparent 33%),
+    linear-gradient(135deg, #fffdf7 0%, var(--color-background) 100%);
+}
+
+.terms-heading h1 {
+  margin: 12px 0 10px;
+  color: var(--color-text);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(36px, 5vw, 54px);
+  letter-spacing: -1.3px;
+  line-height: 1.12;
+}
+
+.terms-heading > p {
+  max-width: 640px;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.terms-document {
+  padding: clamp(24px, 5vw, 48px);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 34%, white);
+  border-radius: 22px;
+  background: var(--color-white);
+  box-shadow: 0 18px 45px rgba(81, 46, 17, 0.055);
+}
+
+.terms-introduction {
+  padding-bottom: 28px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 42%, white);
+}
+
+.terms-introduction h2 {
+  margin: 0 0 10px;
+  color: var(--color-text);
+  font-size: 20px;
+  line-height: 1.4;
+}
+
+.terms-introduction p,
+.terms-section p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 1.85;
+}
+
+.terms-sections {
+  display: grid;
+}
+
+.terms-section {
+  padding: 23px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-accent) 35%, white);
+  scroll-margin-top: 100px;
+}
+
+.terms-section:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.terms-section h2 {
+  display: flex;
+  gap: 9px;
+  margin: 0 0 8px;
+  color: var(--color-text);
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.terms-section-number {
+  flex: 0 0 auto;
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .terms-main {
+    width: min(100% - 32px, 560px);
+    padding: 26px 0 56px;
+  }
+
+  .terms-heading {
+    margin-bottom: 18px;
+    padding: 28px 22px;
+    border-radius: 20px;
+  }
+
+  .terms-heading h1 {
+    font-size: clamp(34px, 9vw, 44px);
+  }
+
+  .terms-document {
+    padding: 24px 20px;
+    border-radius: 19px;
+  }
+
+  .terms-section {
+    padding: 20px 0;
+  }
+
+  .terms-section h2 {
+    font-size: 17px;
+  }
+
+  .terms-introduction p,
+  .terms-section p {
+    font-size: 14px;
+    line-height: 1.8;
+  }
+}
