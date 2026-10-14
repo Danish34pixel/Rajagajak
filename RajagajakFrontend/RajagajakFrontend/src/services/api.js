@@ -1,7 +1,10 @@
-const API_URL = (import.meta.env.VITE_API_URL || "https://api.rajagajak.tech/0")
-  .trim()
-  .replace(/\/+$/, "");
-const API_ROOT = `${API_URL}/api/v1`;
+import { joinApiPath, normalizeApiBase } from "../utils/apiUrl.js";
+
+const API_BASE = normalizeApiBase(
+  (import.meta.env.VITE_API_URL || "https://api.rajagajak.tech").trim(),
+);
+const API_ROOT = `${API_BASE}/api/v1`;
+const API_COMPAT_ROOT = `${API_BASE}/api`;
 
 const messages = {
   400: "Please check the information you entered.",
@@ -30,7 +33,10 @@ const request = async (path, options = {}, apiRoot = API_ROOT) => {
   if (token) headers.Authorization = `Bearer ${token}`;
 
   try {
-    const response = await fetch(`${apiRoot}${path}`, { ...options, headers });
+    const response = await fetch(joinApiPath(apiRoot, path), {
+      ...options,
+      headers,
+    });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new ApiError(
@@ -151,7 +157,7 @@ export const applyCoupon = (code, checkout) =>
       method: "POST",
       body: JSON.stringify({ code, ...checkout }),
     },
-    `${API_URL}/api`,
+    API_COMPAT_ROOT,
   );
 export const products = () => request("/products");
 export const product = (id) => request(`/products/${id}`);
@@ -161,7 +167,7 @@ export const createRazorpayOrder = (order) =>
     body: JSON.stringify(order),
   });
 export const paymentConfig = () =>
-  request("/payment/config", {}, `${API_URL}/api`);
+  request("/payment/config", {}, API_COMPAT_ROOT);
 export const verifyRazorpayPayment = (payload) =>
   request("/payment/verify", {
     method: "POST",
@@ -179,7 +185,7 @@ export const quoteShipping = (delivery) =>
       method: "POST",
       body: JSON.stringify(delivery),
     },
-    `${API_URL}/api`,
+    API_COMPAT_ROOT,
   );
 export const myOrders = () => request("/orders/my-orders");
 export const myOrder = (id) => request(`/orders/${id}`);
