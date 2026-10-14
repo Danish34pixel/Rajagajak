@@ -65,21 +65,19 @@ const safeProviderField = (value, credentials) => {
 
 const getRazorpayErrorDiagnostics = (
   error,
-  { keyId = "", keySecret = "" } = {},
+  { keyId = "", keySecret = "", sensitiveValues = [] } = {},
 ) => {
   const providerError =
     error?.error || error?.response?.data?.error || error || {};
   const statusCode =
     Number(error?.statusCode || error?.status || error?.response?.status) ||
     null;
+  const redactedValues = [keyId, keySecret, ...sensitiveValues];
   return {
-    code: safeProviderField(providerError.code, [keyId, keySecret]),
-    description: safeProviderField(providerError.description, [
-      keyId,
-      keySecret,
-    ]),
+    code: safeProviderField(providerError.code, redactedValues),
+    description: safeProviderField(providerError.description, redactedValues),
     httpStatus: statusCode,
-    reason: safeProviderField(providerError.reason, [keyId, keySecret]),
+    reason: safeProviderField(providerError.reason, redactedValues),
   };
 };
 

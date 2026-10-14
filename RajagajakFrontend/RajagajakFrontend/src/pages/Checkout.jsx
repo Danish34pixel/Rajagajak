@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { PencilLine, X } from "lucide-react";
@@ -61,7 +61,10 @@ const loadRazorpayCheckoutScript = async () => {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
-    script.onload = () => resolve(true);
+    script.onload = () => {
+      if (window.Razorpay) resolve(true);
+      else reject(new Error("Razorpay checkout did not initialize."));
+    };
     script.onerror = () => reject(new Error("Unable to load Razorpay checkout."));
     document.body.appendChild(script);
   });
@@ -128,6 +131,7 @@ export default function Checkout() {
   const [gettingLocation, setGettingLocation] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const paymentSubmissionLock = useRef(false);
   const [coupons, setCoupons] = useState([]);
   const [couponError, setCouponError] = useState("");
   const [selectedCouponCode, setSelectedCouponCode] = useState("");
@@ -475,6 +479,7 @@ export default function Checkout() {
 
   const submit = async (event) => {
     event.preventDefault();
+    if (paymentSubmissionLock.current) return;
     setError("");
     if (!cartItems.length) return setError("Your bag is empty.");
     if (!user) {
@@ -523,6 +528,7 @@ export default function Checkout() {
       couponCode: appliedCoupon?.coupon?.code || undefined,
     };
 
+    paymentSubmissionLock.current = true;
     setSubmitting(true);
     try {
       const configResponse = await api.paymentConfig();
@@ -568,6 +574,7 @@ export default function Checkout() {
               );
             }
           } finally {
+            paymentSubmissionLock.current = false;
             setSubmitting(false);
           }
         },
@@ -581,17 +588,24 @@ export default function Checkout() {
         },
         modal: {
           ondismiss: () => {
+            paymentSubmissionLock.current = false;
             setSubmitting(false);
             setError("Payment was cancelled. Your order was not placed.");
           },
         },
       });
 
+      razorpay.on("payment.failed", () => {
+        paymentSubmissionLock.current = false;
+        setSubmitting(false);
+        setError("Payment failed. Please try again or contact support.");
+      });
       razorpay.open();
     } catch (requestError) {
       if (!redirectToLoginOnUnauthorized(requestError)) {
         setError(requestError.message || "Unable to place your order.");
       }
+      paymentSubmissionLock.current = false;
       setSubmitting(false);
     }
   };
