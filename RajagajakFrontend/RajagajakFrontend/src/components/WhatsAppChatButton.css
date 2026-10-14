@@ -1,0 +1,94 @@
+.whatsapp-chat-button {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: calc(104px + env(safe-area-inset-bottom));
+  z-index: 55;
+  display: grid;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: #25d366;
+  box-shadow: 0 5px 18px rgb(15 79 43 / 28%);
+  text-decoration: none;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    opacity 160ms ease,
+    visibility 160ms ease;
+}
+
+.whatsapp-chat-button-phone {
+  position: absolute;
+  top: 22px;
+  left: 23px;
+  fill: #25d366;
+  color: #fff;
+}
+
+.whatsapp-chat-button::after {
+  position: absolute;
+  right: calc(100% + 10px);
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: #fff;
+  background: #252a26;
+  content: "Chat with us on WhatsApp";
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(4px);
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+  white-space: nowrap;
+}
+
+.whatsapp-chat-button:hover,
+.whatsapp-chat-button:focus-visible {
+  background: #1fbd5a;
+  box-shadow: 0 8px 22px rgb(15 79 43 / 34%);
+  transform: translateY(-2px);
+}
+
+.whatsapp-chat-button:hover::after,
+.whatsapp-chat-button:focus-visible::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.whatsapp-chat-button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.whatsapp-chat-button.is-footer-visible {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+@media (max-width: 600px) {
+  .whatsapp-chat-button {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(92px + env(safe-area-inset-bottom));
+    width: 54px;
+    height: 54px;
+  }
+
+  .whatsapp-chat-button-phone {
+    top: 20px;
+    left: 21px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whatsapp-chat-button,
+  .whatsapp-chat-button::after {
+    transition: none;
+  }
+}

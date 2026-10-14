@@ -20,6 +20,7 @@ import ProtectedRoute, {
   CheckoutRoute,
 } from "./components/ProtectedRoute.jsx";
 import OrderStatusNotification from "./components/OrderStatusNotification.jsx";
+import WhatsAppChatButton from "./components/WhatsAppChatButton.jsx";
 import { FlyToCartProvider } from "./components/FlyToCart.jsx";
 import ScrollToTop from "./components/ScrollToTop.jsx";
 import "./App.css";
@@ -30,6 +31,7 @@ function App() {
       <FlyToCartProvider>
         <ScrollToTop />
         <OrderStatusNotification />
+        <WhatsAppChatButton />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
