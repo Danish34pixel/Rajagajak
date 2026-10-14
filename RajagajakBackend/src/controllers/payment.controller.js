@@ -17,6 +17,9 @@ const {
   getRazorpayErrorDiagnostics,
 } = require("../services/razorpay-payment.service");
 
+const paymentInputError = (message, statusCode = 400) =>
+  Object.assign(new Error(message), { statusCode });
+
 const razorpayConfigurationIssue = getRazorpayConfigurationIssue({
   keyId: env.razorpayKeyId,
   keySecret: env.razorpayKeySecret,
@@ -72,6 +75,38 @@ const deliveryErrorMessage = (error) => {
   return "We couldn't calculate delivery charges. Please try again or enter your delivery address.";
 };
 
+const isDeliveryInputError = (error) =>
+  [
+    "A valid delivery location is required.",
+    "A complete delivery address is required.",
+    "We couldn't find that delivery address.",
+    "We couldn't get a readable address for your current location.",
+    "Sorry, we currently deliver only within our delivery area.",
+    "Please enter a valid delivery address.",
+  ].includes(error.message);
+
+const paymentOrderError = (error) => {
+  if ([400, 409].includes(error?.statusCode))
+    return { statusCode: error.statusCode, message: error.message };
+
+  const message = String(error?.message || "");
+  if (
+    message === "Your cart is empty." ||
+    message.startsWith("Invalid order item quantity.") ||
+    message === "One of the products is no longer available."
+  ) {
+    return { statusCode: 400, message };
+  }
+  if (
+    / is not currently available for ordering\.$/.test(message) ||
+    /^Only \d+(?:\.\d+)? KG is available for .+\.$/.test(message)
+  ) {
+    return { statusCode: 409, message };
+  }
+
+  return null;
+};
+
 const getOrderNumber = () =>
   `RJG-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
 
@@ -82,6 +117,18 @@ const buildPaymentOrder = async ({
   customerLocation,
   couponCode,
 }) => {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw paymentInputError("Your cart is empty.");
+  }
+  if (items.some((item) => !item || typeof item !== "object")) {
+    throw paymentInputError(
+      "Invalid order item quantity. Choose at least 300 g in 100 g increments.",
+    );
+  }
+  if (!shippingAddress || typeof shippingAddress !== "object") {
+    throw paymentInputError("Please provide a complete valid delivery address.");
+  }
+
   const billingAddress = normalizeAddress(shippingAddress);
   const hasCustomerLocation = Boolean(customerLocation);
   if (
@@ -93,7 +140,9 @@ const buildPaymentOrder = async ({
         !billingAddress.state ||
         !/^\d{6}$/.test(billingAddress.pincode)))
   ) {
-    throw new Error("Please provide a complete valid delivery address.");
+    throw paymentInputError(
+      "Please provide a complete valid delivery address.",
+    );
   }
 
   let shipping;
@@ -137,10 +186,24 @@ const buildPaymentOrder = async ({
     billingAddress.latitude = shipping.destination.latitude;
     billingAddress.longitude = shipping.destination.longitude;
   } catch (error) {
-    throw new Error(deliveryErrorMessage(error));
+    if (isDeliveryInputError(error)) {
+      throw paymentInputError(deliveryErrorMessage(error));
+    }
+    throw Object.assign(
+      new Error("Delivery location service is unavailable."),
+      { statusCode: 502 },
+    );
   }
 
-  const calculatedItems = await calculateItems(items);
+  let calculatedItems;
+  try {
+    calculatedItems = await calculateItems(items);
+  } catch (error) {
+    const orderError = paymentOrderError(error);
+    if (orderError)
+      throw paymentInputError(orderError.message, orderError.statusCode);
+    throw error;
+  }
   const baseSnapshots = calculatedItems.map((item) => item.snapshot);
   let snapshots = baseSnapshots;
   let pricing = buildPricing(snapshots, shipping.shippingCharge);
@@ -149,7 +212,7 @@ const buildPaymentOrder = async ({
   if (couponCode) {
     const normalizedCouponCode = String(couponCode).trim().toUpperCase();
     const coupon = await Coupon.findOne({ code: normalizedCouponCode });
-    if (!coupon) throw new Error("Coupon not found.");
+    if (!coupon) throw paymentInputError("Coupon not found.");
     const [userOrderCount, redemption] = await Promise.all([
       Order.countDocuments({
         userId,
@@ -157,16 +220,23 @@ const buildPaymentOrder = async ({
       }),
       CouponRedemption.findOne({ couponId: coupon._id, userId }),
     ]);
-    const couponResult = evaluateCoupon({
-      coupon,
-      items: snapshots,
-      shipping,
-      shippingAddress: billingAddress,
-      paymentMethod: "razorpay",
-      userId,
-      userOrderCount,
-      userCouponUseCount: redemption?.count || 0,
-    });
+    let couponResult;
+    try {
+      couponResult = evaluateCoupon({
+        coupon,
+        items: snapshots,
+        shipping,
+        shippingAddress: billingAddress,
+        paymentMethod: "razorpay",
+        userId,
+        userOrderCount,
+        userCouponUseCount: redemption?.count || 0,
+      });
+    } catch (error) {
+      throw paymentInputError(
+        error.message || "This coupon cannot be applied to this order.",
+      );
+    }
     snapshots = couponResult.items;
     pricing = couponResult.pricing;
     appliedCoupon = couponResult;
@@ -183,109 +253,183 @@ const buildPaymentOrder = async ({
   };
 };
 
-const createRazorpayOrder = asyncHandler(async (req, res) => {
-  if (String(req.body.paymentMethod || "").trim().toLowerCase() !== "razorpay") {
+const createRazorpayOrderHandler = ({
+  client,
+  keyId,
+  keySecret,
+  buildOrder,
+  logger = console,
+}) =>
+  asyncHandler(async (req, res) => {
+    const body = req.body || {};
+    if (String(body.paymentMethod || "").trim().toLowerCase() !== "razorpay") {
+    logger.warn(
+      "[payment] Order request rejected",
+      JSON.stringify({ stage: "request_validation", statusCode: 400 }),
+    );
     return errorResponse(
       res,
       "Razorpay is the only supported payment method.",
-      400,
-    );
-  }
-  if (!paymentClient) {
-    return errorResponse(
-      res,
-      "Razorpay is unavailable because the server payment credentials are missing or invalid. Please contact support.",
-      503,
-    );
-  }
+        400,
+      );
+    }
+    if (!client) {
+      return errorResponse(
+        res,
+        "Razorpay is temporarily unavailable. Please contact support.",
+        503,
+      );
+    }
 
-  const clientRequestId = String(req.body.clientRequestId || "").trim();
-  if (!clientRequestId || clientRequestId.length > 100) {
-    return errorResponse(res, "A valid order request id is required", 400);
-  }
+    const clientRequestId = String(body.clientRequestId || "").trim();
+    if (!clientRequestId || clientRequestId.length > 100) {
+      logger.warn(
+        "[payment] Order request rejected",
+        JSON.stringify({ stage: "request_validation", statusCode: 400 }),
+      );
+      return errorResponse(res, "A valid order request id is required.", 400);
+    }
 
-  let orderPayload;
-  try {
-    orderPayload = await buildPaymentOrder({
-      userId: req.user.sub,
-      items: req.body.items,
-      shippingAddress: req.body.shippingAddress,
-      customerLocation: req.body.customerLocation,
-      couponCode: req.body.couponCode,
-    });
-  } catch (error) {
-    return errorResponse(
-      res,
-      error.message || "Unable to calculate this order.",
-      400,
-    );
-  }
+    let orderPayload;
+    try {
+      orderPayload = await buildOrder({
+        userId: req.user.sub,
+        items: body.items,
+        shippingAddress: body.shippingAddress,
+        customerLocation: body.customerLocation,
+        couponCode: body.couponCode,
+      });
+    } catch (error) {
+      const orderError = paymentOrderError(error);
+      if (orderError) {
+        logger.warn(
+          "[payment] Order request rejected",
+          JSON.stringify({
+            stage: "order_validation",
+            statusCode: orderError.statusCode,
+          }),
+        );
+        return errorResponse(res, orderError.message, orderError.statusCode);
+      }
 
-  const grandTotal = Number(orderPayload.pricing.grandTotal);
-  const amountInPaise = Math.round(grandTotal * 100);
-  if (
-    !Number.isFinite(grandTotal) ||
-    !Number.isSafeInteger(amountInPaise) ||
-    amountInPaise <= 0
-  ) {
-    return errorResponse(
-      res,
-      "Unable to calculate a valid payment amount.",
-      400,
-    );
-  }
+      const statusCode = error?.statusCode === 502 ? 502 : 500;
+      const stage =
+        error?.statusCode === 502
+          ? "shipping_calculation"
+          : "order_calculation";
+      logger.error(
+        "[payment] Order calculation failed",
+        JSON.stringify({
+          stage,
+          errorName:
+            typeof error?.name === "string" &&
+            /^[A-Za-z][A-Za-z0-9]*$/.test(error.name)
+              ? error.name
+              : "Error",
+          statusCode,
+        }),
+      );
+      return errorResponse(
+        res,
+        statusCode === 502
+          ? "We couldn't verify the delivery location. Please try again shortly."
+          : "We couldn't prepare this payment. Please try again or contact support.",
+        statusCode,
+      );
+    }
 
-  const receiptValue = String(req.body.receipt || clientRequestId || "")
-    .trim()
-    .slice(0, 40);
-  let razorpayOrder;
-  try {
-    razorpayOrder = await paymentClient.orders.create({
-      amount: amountInPaise,
-      currency: "INR",
-      receipt: receiptValue || `rjg-${Date.now()}`,
-      notes: {
-        clientRequestId,
-        userId: String(req.user.sub),
-        paymentType: "razorpay",
-      },
-    });
-  } catch (error) {
-    const diagnostics = getRazorpayErrorDiagnostics(error, {
-      keyId: env.razorpayKeyId,
-      keySecret: env.razorpayKeySecret,
-    });
-    console.error(
-      "[payment] Razorpay order creation failed",
-      JSON.stringify(diagnostics),
-    );
-    return errorResponse(
-      res,
-      "Razorpay could not create this payment order. Please verify the payment configuration or contact support.",
-      502,
-    );
-  }
+    const grandTotal = Number(orderPayload?.pricing?.grandTotal);
+    const amountInPaise = Math.round(grandTotal * 100);
+    if (
+      !Number.isFinite(grandTotal) ||
+      !Number.isSafeInteger(amountInPaise) ||
+      amountInPaise <= 0
+    ) {
+      logger.error(
+        "[payment] Server calculated an invalid order amount",
+        JSON.stringify({ stage: "amount_validation" }),
+      );
+      return errorResponse(
+        res,
+        "We couldn't calculate a valid payment amount. Please contact support.",
+        500,
+      );
+    }
 
-  return successResponse(
-    res,
-    {
-      order: {
-        ...orderPayload,
+    let razorpayOrder;
+    try {
+      razorpayOrder = await client.orders.create({
         amount: amountInPaise,
-        clientRequestId,
-        razorpayOrderId: razorpayOrder.id,
+        currency: "INR",
+        receipt: clientRequestId.slice(0, 40),
+        notes: {
+          clientRequestId,
+          userId: String(req.user.sub),
+          paymentType: "razorpay",
+        },
+      });
+    } catch (error) {
+      const diagnostics = getRazorpayErrorDiagnostics(error, {
+        keyId,
+        keySecret,
+        sensitiveValues: [clientRequestId, String(req.user.sub)],
+      });
+      logger.error(
+        "[payment] Razorpay order creation failed",
+        JSON.stringify({ stage: "razorpay_order_creation", ...diagnostics }),
+      );
+      return errorResponse(
+        res,
+        diagnostics.httpStatus === 401
+          ? "The payment provider could not authenticate the server credentials. Please contact support."
+          : "Razorpay could not create this payment order. Please try again or contact support.",
+        502,
+      );
+    }
+
+    if (
+      !razorpayOrder?.id ||
+      razorpayOrder.amount !== amountInPaise ||
+      razorpayOrder.currency !== "INR"
+    ) {
+      logger.error(
+        "[payment] Razorpay returned an invalid order response",
+        JSON.stringify({ stage: "razorpay_order_response" }),
+      );
+      return errorResponse(
+        res,
+        "The payment provider returned an invalid order. Please try again or contact support.",
+        502,
+      );
+    }
+
+    return successResponse(
+      res,
+      {
+        order: {
+          ...orderPayload,
+          amount: amountInPaise,
+          clientRequestId,
+          razorpayOrderId: razorpayOrder.id,
+        },
+        razorpayOrder: {
+          id: razorpayOrder.id,
+          amount: razorpayOrder.amount,
+          currency: razorpayOrder.currency,
+          receipt: razorpayOrder.receipt,
+          key: keyId,
+        },
       },
-      razorpayOrder: {
-        id: razorpayOrder.id,
-        amount: razorpayOrder.amount,
-        currency: razorpayOrder.currency,
-        receipt: razorpayOrder.receipt,
-        key: env.razorpayKeyId,
-      },
-    },
-    "Payment order created",
-    200,
-  );
+      "Payment order created",
+      200,
+    );
+  });
+
+const createRazorpayOrder = createRazorpayOrderHandler({
+  client: paymentClient,
+  keyId: env.razorpayKeyId,
+  keySecret: env.razorpayKeySecret,
+  buildOrder: buildPaymentOrder,
 });
 
 const verifyPayment = asyncHandler(async (req, res) => {
@@ -544,6 +688,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
 
 module.exports = {
   createRazorpayOrder,
+  createRazorpayOrderHandler,
   getPaymentConfig,
   verifyPayment,
 };
