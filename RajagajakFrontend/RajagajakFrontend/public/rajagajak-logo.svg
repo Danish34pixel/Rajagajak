@@ -8,5 +8,5 @@
   </g>
   <circle cx="385" cy="56" r="14" fill="none" stroke="#fff1bd" stroke-width="3"/>
   <text x="385" y="62" fill="#fff1bd" font-family="Georgia, serif" font-size="17" font-weight="700" text-anchor="middle">R</text>
-  <text x="90" y="143" fill="#2b2320" font-family="Arial, sans-serif" font-size="10" letter-spacing="2">ISO 9001 · CERTIFIED</text>
+  <text x="46" y="143" fill="#2b2320" font-family="Arial, sans-serif" font-size="9" letter-spacing="1">ISO 9001 · CERTIFIED</text>
 </svg>
