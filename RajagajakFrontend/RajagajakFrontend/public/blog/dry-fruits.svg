@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#fff9e8"/><stop offset="1" stop-color="#efdcad"/></linearGradient>
+    <linearGradient id="fig" x2="1" y2="1"><stop stop-color="#a84551"/><stop offset="1" stop-color="#6e253c"/></linearGradient>
+    <linearGradient id="date" x2="0" y2="1"><stop stop-color="#bd7a3e"/><stop offset="1" stop-color="#71381f"/></linearGradient>
+  </defs>
+  <rect width="800" height="480" rx="28" fill="url(#bg)"/>
+  <circle cx="635" cy="101" r="108" fill="#fff" opacity=".3"/>
+  <ellipse cx="404" cy="365" rx="270" ry="48" fill="#8e5b2d" opacity=".13"/>
+  <ellipse cx="400" cy="330" rx="255" ry="78" fill="#fffdf6"/>
+  <ellipse cx="400" cy="319" rx="214" ry="51" fill="#ead9b7"/>
+  <g fill="#d1a052" stroke="#f8e1a6" stroke-width="4">
+    <ellipse cx="272" cy="268" rx="63" ry="48" transform="rotate(-14 272 268)"/>
+    <ellipse cx="365" cy="285" rx="66" ry="45" transform="rotate(9 365 285)"/>
+    <ellipse cx="481" cy="268" rx="65" ry="46" transform="rotate(-8 481 268)"/>
+  </g>
+  <g fill="#fff2cf"><path d="m246 242 15-8 13 8-3 16-15 6-13-9z"/><path d="m292 272 15-8 13 8-3 16-15 6-13-9z"/><path d="m350 264 15-8 13 8-3 16-15 6-13-9z"/><path d="m459 246 15-8 13 8-3 16-15 6-13-9z"/><path d="m500 278 15-8 13 8-3 16-15 6-13-9z"/></g>
+  <g fill="url(#fig)" stroke="#e39a71" stroke-width="4">
+    <path d="M187 189c-18-41 18-79 55-72 33 7 46 43 22 76-14 19-18 36-16 50h-44c6-21-5-37-17-54z"/>
+    <path d="M510 177c-16-37 17-70 49-64 29 6 40 39 21 67-13 17-16 32-14 45h-39c5-19-5-33-17-48z"/>
+  </g>
+  <g fill="#f1c275"><circle cx="220" cy="181" r="3"/><circle cx="237" cy="190" r="3"/><circle cx="251" cy="176" r="3"/><circle cx="542" cy="169" r="3"/><circle cx="561" cy="177" r="3"/><circle cx="574" cy="164" r="3"/></g>
+  <g fill="url(#date)" stroke="#d69b54" stroke-width="2"><ellipse cx="608" cy="262" rx="30" ry="16" transform="rotate(-28 608 262)"/><ellipse cx="650" cy="286" rx="28" ry="15" transform="rotate(19 650 286)"/><ellipse cx="582" cy="300" rx="27" ry="14" transform="rotate(12 582 300)"/></g>
+  <g fill="#f0d89e"><ellipse cx="606" cy="257" rx="3" ry="1.5"/><ellipse cx="648" cy="281" rx="3" ry="1.5"/><ellipse cx="580" cy="295" rx="3" ry="1.5"/></g>
+</svg>

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#fffaf0"/><stop offset="1" stop-color="#f7e8bf"/></linearGradient>
+    <linearGradient id="gur" x2="0" y2="1"><stop stop-color="#c88842"/><stop offset="1" stop-color="#87501f"/></linearGradient>
+    <pattern id="seed" width="26" height="22" patternUnits="userSpaceOnUse" patternTransform="rotate(-22)"><ellipse cx="8" cy="8" rx="4" ry="2" fill="#fff0b8"/><ellipse cx="20" cy="18" rx="3.5" ry="1.7" fill="#915b30"/></pattern>
+  </defs>
+  <rect width="800" height="480" rx="28" fill="url(#bg)"/>
+  <circle cx="198" cy="233" r="145" fill="#fff" opacity=".48"/>
+  <circle cx="604" cy="235" r="145" fill="#f0d9a5" opacity=".48"/>
+  <path d="M400 90v300" stroke="#ddc99e" stroke-width="2" stroke-dasharray="6 10"/>
+  <g transform="rotate(-10 251 245)">
+    <rect x="127" y="209" width="245" height="112" rx="19" fill="#9f642e"/>
+    <rect x="127" y="179" width="245" height="112" rx="19" fill="#e5bc67" stroke="#fff1c4" stroke-width="5"/>
+    <rect x="127" y="179" width="245" height="112" rx="19" fill="url(#seed)"/>
+  </g>
+  <g fill="url(#gur)" stroke="#e6bd70" stroke-width="3">
+    <path d="M474 195 533 172l53 25-4 59-58 27-53-29z"/>
+    <path d="m546 258 49-21 48 22-5 51-48 23-47-24z"/>
+    <path d="m498 298 43-18 43 20-4 46-42 19-42-21z"/>
+  </g>
+  <g fill="#fff0bc"><ellipse cx="178" cy="148" rx="5" ry="2.5" transform="rotate(26 178 148)"/><ellipse cx="202" cy="136" rx="5" ry="2.5" transform="rotate(-20 202 136)"/><ellipse cx="229" cy="148" rx="5" ry="2.5"/><ellipse cx="251" cy="133" rx="5" ry="2.5" transform="rotate(24 251 133)"/><ellipse cx="280" cy="146" rx="5" ry="2.5"/></g>
+  <text x="245" y="380" text-anchor="middle" fill="#704322" font-family="Arial,sans-serif" font-size="19" font-weight="700" letter-spacing="2">TIL</text>
+  <text x="562" y="380" text-anchor="middle" fill="#704322" font-family="Arial,sans-serif" font-size="19" font-weight="700" letter-spacing="2">GUR</text>
+</svg>

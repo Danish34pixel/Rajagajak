@@ -4,6 +4,7 @@ import { BarChart3, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import Navbar from "../components/Navbar.jsx";
 import * as api from "../services/api.js";
 import AdminOrderSection from "./AdminOrderSection.jsx";
+import AdminBlog from "./AdminBlog.jsx";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
@@ -42,11 +43,13 @@ const emptyCoupon = () => ({
 export default function AdminDashboard() {
   const location = useLocation();
   const navigate = useNavigate();
-  const section = location.pathname.includes("coupons")
-    ? "coupons"
-    : location.pathname.includes("orders")
-      ? "orders"
-      : "products";
+  const section = location.pathname.includes("/blog")
+    ? "blog"
+    : location.pathname.includes("coupons")
+      ? "coupons"
+      : location.pathname.includes("orders")
+        ? "orders"
+        : "products";
   const [products, setProducts] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -86,9 +89,10 @@ export default function AdminDashboard() {
     }
   };
   useEffect(() => {
+    if (section === "blog") return undefined;
     const timer = setTimeout(load, 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [section]);
   const finalPrice = Math.max(
     0,
     Number(product.mrp || 0) * (1 - Number(product.discount || 0) / 100),
@@ -270,6 +274,8 @@ export default function AdminDashboard() {
     }
   };
 
+  if (section === "blog") return <AdminBlog />;
+
   return (
     <div className="app-shell">
       <Navbar admin />
@@ -309,6 +315,12 @@ export default function AdminDashboard() {
             to="/admin/orders"
           >
             Orders ({orders.length})
+          </Link>
+          <Link
+            className={section === "blog" ? "active" : ""}
+            to="/admin/blog"
+          >
+            Blog &amp; Content
           </Link>
         </nav>
         {error && <div className="alert">{error}</div>}

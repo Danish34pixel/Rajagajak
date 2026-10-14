@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "seed:blog": "node src/scripts/seed-blog-articles.js"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +18,7 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "entities": "^8.1.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
@@ -24,7 +26,8 @@
     "mongoose": "^9.10.1",
     "mongosh": "^2.11.1",
     "multer": "^2.4.0",
-    "razorpay": "^2.9.8"
+    "razorpay": "^2.9.8",
+    "sanitize-html": "^2.18.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

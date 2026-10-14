@@ -3,6 +3,7 @@ import { ArrowRight, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Navbar from "../components/Navbar.jsx";
+import SiteFooter from "../components/SiteFooter.jsx";
 import { useCart } from "../context/useCart.js";
 import { useFlyToCart } from "../components/FlyToCart.jsx";
 import * as api from "../services/api.js";
@@ -462,6 +463,7 @@ export default function Dashboard() {
           </AnimatePresence>
         </motion.section>
       </main>
+      <SiteFooter />
     </div>
   );
 }

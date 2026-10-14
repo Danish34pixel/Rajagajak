@@ -4,6 +4,8 @@ const crypto = require("node:crypto");
 const {
   verifyRazorpaySignature,
   isCapturedRazorpayPayment,
+  getRazorpayConfigurationIssue,
+  getRazorpayErrorDiagnostics,
 } = require("../src/services/razorpay-payment.service");
 
 const keySecret = "test-secret";
@@ -82,5 +84,79 @@ test("a payment is valid only when Razorpay confirms the matching full capture",
       userId: "another-user",
     }),
     false,
+  );
+});
+
+test("Razorpay configuration requires a recognized mode key and clean credentials", () => {
+  assert.equal(
+    getRazorpayConfigurationIssue({
+      keyId: "rzp_test_abc123",
+      keySecret: "opaque-secret",
+    }),
+    null,
+  );
+  assert.equal(
+    getRazorpayConfigurationIssue({
+      keyId: "rzp_live_abc123",
+      keySecret: "opaque-secret",
+    }),
+    null,
+  );
+  assert.equal(
+    getRazorpayConfigurationIssue({
+      keyId: "RAZORPAY_KEY_ID",
+      keySecret: "opaque-secret",
+    }),
+    "invalid_key_id",
+  );
+  assert.equal(
+    getRazorpayConfigurationIssue({
+      keyId: "rzp_test_abc123 ",
+      keySecret: "opaque-secret",
+    }),
+    "credential_whitespace",
+  );
+  assert.equal(
+    getRazorpayConfigurationIssue({
+      keyId: "rzp_test_abc123",
+      keySecret: "opaque secret",
+    }),
+    "invalid_key_secret_format",
+  );
+  assert.equal(
+    getRazorpayConfigurationIssue({ keyId: "", keySecret: "" }),
+    "missing_credentials",
+  );
+});
+
+test("Razorpay provider diagnostics retain safe fields and redact credentials", () => {
+  const diagnostics = getRazorpayErrorDiagnostics(
+    {
+      statusCode: 401,
+      error: {
+        code: "BAD_REQUEST_ERROR",
+        description: "Invalid key rzp_test_sensitive",
+        reason: "authentication_failed",
+      },
+    },
+    {
+      keyId: "rzp_test_sensitive",
+      keySecret: "secret-sensitive",
+    },
+  );
+  assert.deepEqual(diagnostics, {
+    code: "BAD_REQUEST_ERROR",
+    description: "Invalid key [REDACTED]",
+    httpStatus: 401,
+    reason: "authentication_failed",
+  });
+  assert.equal(
+    getRazorpayErrorDiagnostics({
+      response: {
+        status: 502,
+        data: { error: { description: "Provider unavailable" } },
+      },
+    }).httpStatus,
+    502,
   );
 });

@@ -13,20 +13,31 @@ const { evaluateCoupon } = require("../services/coupon.service");
 const {
   verifyRazorpaySignature,
   isCapturedRazorpayPayment,
+  getRazorpayConfigurationIssue,
+  getRazorpayErrorDiagnostics,
 } = require("../services/razorpay-payment.service");
 
-const paymentClient =
-  env.razorpayKeyId && env.razorpayKeySecret
-    ? new Razorpay({
-        key_id: env.razorpayKeyId,
-        key_secret: env.razorpayKeySecret,
-      })
-    : null;
+const razorpayConfigurationIssue = getRazorpayConfigurationIssue({
+  keyId: env.razorpayKeyId,
+  keySecret: env.razorpayKeySecret,
+});
+if (razorpayConfigurationIssue) {
+  console.error(
+    "[payment] Razorpay configuration is invalid",
+    JSON.stringify({ issue: razorpayConfigurationIssue }),
+  );
+}
+const paymentClient = !razorpayConfigurationIssue
+  ? new Razorpay({
+      key_id: env.razorpayKeyId,
+      key_secret: env.razorpayKeySecret,
+    })
+  : null;
 
 const round = (value) => Number(value.toFixed(2));
 
 const getPaymentConfig = (req, res) => {
-  return res.json({ keyId: env.razorpayKeyId || null });
+  return res.json({ keyId: paymentClient ? env.razorpayKeyId : null });
 };
 
 const normalizeAddress = (address = {}) => ({
@@ -183,8 +194,8 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
   if (!paymentClient) {
     return errorResponse(
       res,
-      "Razorpay is not configured. Add the RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.",
-      500,
+      "Razorpay is unavailable because the server payment credentials are missing or invalid. Please contact support.",
+      503,
     );
   }
 
@@ -193,25 +204,43 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     return errorResponse(res, "A valid order request id is required", 400);
   }
 
+  let orderPayload;
   try {
-    const orderPayload = await buildPaymentOrder({
+    orderPayload = await buildPaymentOrder({
       userId: req.user.sub,
       items: req.body.items,
       shippingAddress: req.body.shippingAddress,
       customerLocation: req.body.customerLocation,
       couponCode: req.body.couponCode,
     });
+  } catch (error) {
+    return errorResponse(
+      res,
+      error.message || "Unable to calculate this order.",
+      400,
+    );
+  }
 
-    const amountInPaise = Math.round(Number(orderPayload.pricing.grandTotal) * 100);
-    if (!Number.isFinite(amountInPaise) || amountInPaise <= 0) {
-      return errorResponse(res, "Unable to calculate a valid payment amount.", 400);
-    }
+  const grandTotal = Number(orderPayload.pricing.grandTotal);
+  const amountInPaise = Math.round(grandTotal * 100);
+  if (
+    !Number.isFinite(grandTotal) ||
+    !Number.isSafeInteger(amountInPaise) ||
+    amountInPaise <= 0
+  ) {
+    return errorResponse(
+      res,
+      "Unable to calculate a valid payment amount.",
+      400,
+    );
+  }
 
-    const receiptValue = String(req.body.receipt || clientRequestId || "")
-      .trim()
-      .slice(0, 40);
-
-    const razorpayOrder = await paymentClient.orders.create({
+  const receiptValue = String(req.body.receipt || clientRequestId || "")
+    .trim()
+    .slice(0, 40);
+  let razorpayOrder;
+  try {
+    razorpayOrder = await paymentClient.orders.create({
       amount: amountInPaise,
       currency: "INR",
       receipt: receiptValue || `rjg-${Date.now()}`,
@@ -221,34 +250,42 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
         paymentType: "razorpay",
       },
     });
-
-    return successResponse(
-      res,
-      {
-        order: {
-          ...orderPayload,
-          amount: amountInPaise,
-          clientRequestId,
-          razorpayOrderId: razorpayOrder.id,
-        },
-        razorpayOrder: {
-          id: razorpayOrder.id,
-          amount: razorpayOrder.amount,
-          currency: razorpayOrder.currency,
-          receipt: razorpayOrder.receipt,
-          key: env.razorpayKeyId,
-        },
-      },
-      "Payment order created",
-      200,
-    );
   } catch (error) {
+    const diagnostics = getRazorpayErrorDiagnostics(error, {
+      keyId: env.razorpayKeyId,
+      keySecret: env.razorpayKeySecret,
+    });
+    console.error(
+      "[payment] Razorpay order creation failed",
+      JSON.stringify(diagnostics),
+    );
     return errorResponse(
       res,
-      error.message || "Unable to create a Razorpay order.",
-      400,
+      "Razorpay could not create this payment order. Please verify the payment configuration or contact support.",
+      502,
     );
   }
+
+  return successResponse(
+    res,
+    {
+      order: {
+        ...orderPayload,
+        amount: amountInPaise,
+        clientRequestId,
+        razorpayOrderId: razorpayOrder.id,
+      },
+      razorpayOrder: {
+        id: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        receipt: razorpayOrder.receipt,
+        key: env.razorpayKeyId,
+      },
+    },
+    "Payment order created",
+    200,
+  );
 });
 
 const verifyPayment = asyncHandler(async (req, res) => {

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#fff9e8"/><stop offset="1" stop-color="#f2dba5"/></linearGradient>
+    <linearGradient id="sweet" x2="0" y2="1"><stop stop-color="#f4d17a"/><stop offset="1" stop-color="#c98539"/></linearGradient>
+    <pattern id="sesame" width="32" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)"><ellipse cx="8" cy="9" rx="4" ry="2" fill="#fff1be"/><ellipse cx="24" cy="20" rx="3.5" ry="1.8" fill="#8d5229"/></pattern>
+  </defs>
+  <rect width="800" height="480" rx="28" fill="url(#bg)"/>
+  <circle cx="650" cy="87" r="105" fill="#fff" opacity=".36"/>
+  <ellipse cx="405" cy="360" rx="255" ry="47" fill="#9a622d" opacity=".13"/>
+  <ellipse cx="400" cy="331" rx="250" ry="62" fill="#fffdf7"/>
+  <ellipse cx="400" cy="318" rx="214" ry="46" fill="#ead7ae"/>
+  <g transform="rotate(-8 400 255)">
+    <rect x="212" y="221" width="366" height="113" rx="22" fill="#a8682d"/>
+    <rect x="212" y="190" width="366" height="113" rx="22" fill="url(#sweet)" stroke="#ffebad" stroke-width="5"/>
+    <rect x="212" y="190" width="366" height="113" rx="22" fill="url(#sesame)"/>
+    <rect x="249" y="153" width="298" height="96" rx="20" fill="#bb7938"/>
+    <rect x="249" y="129" width="298" height="96" rx="20" fill="url(#sweet)" stroke="#ffebad" stroke-width="4"/>
+    <rect x="249" y="129" width="298" height="96" rx="20" fill="url(#sesame)"/>
+  </g>
+  <g fill="#a65b2d"><ellipse cx="165" cy="277" rx="18" ry="10" transform="rotate(-35 165 277)"/><ellipse cx="621" cy="271" rx="18" ry="10" transform="rotate(30 621 271)"/><ellipse cx="641" cy="298" rx="15" ry="9" transform="rotate(-18 641 298)"/></g>
+  <g fill="#fff0bc"><circle cx="165" cy="277" r="2"/><circle cx="621" cy="271" r="2"/><circle cx="641" cy="298" r="2"/></g>
+</svg>
