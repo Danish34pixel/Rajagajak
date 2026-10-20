@@ -6,9 +6,10 @@ Modular JavaScript REST API built with Node.js, Express, and MongoDB/Mongoose.
 
 1. Create a backend-root `.env` file and configure `MONGO_URI`, `JWT_SECRET`,
    `IMAGEKIT_PRIVATE_KEY`, `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_URL_ENDPOINT`,
-   `RAZORPAY_KEY_ID`, and `RAZORPAY_KEY_SECRET`. Configure the store
-   coordinates and delivery settings there as well. Verify the store
-   coordinates against the shop before enabling live delivery.
+   `RAZORPAY_KEY_ID`, and `RAZORPAY_KEY_SECRET`. Password-reset emails also
+   require the SMTP variables listed in the Password recovery section below.
+   Configure the store coordinates and delivery settings there as well. Verify
+   the store coordinates against the shop before enabling live delivery.
 2. Install dependencies with `npm install`.
 3. Run locally with `npm run dev` or start with `npm start`.
 
@@ -36,6 +37,46 @@ If startup reports that MongoDB servers cannot be reached:
 
 The API is versioned under `/api/v1`. The health endpoint is available at
 `GET /api/v1/health`.
+
+## Password recovery
+
+The public account recovery endpoints are
+`POST /api/v1/auth/forgot-password` and `POST /api/v1/auth/reset-password`.
+Forgot-password requests receive the same generic response for registered and
+unknown email addresses. Reset tokens are random, single-use, expire after 30
+minutes, and are stored only as SHA-256 hashes. A successful reset hashes the
+password with the existing bcryptjs cost (12), removes the token fields, and
+revokes previously issued JWTs.
+
+Set these variables in the backend environment (or deployment secret store):
+
+```dotenv
+FRONTEND_URL=https://www.rajagajak.in
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+EMAIL_FROM=Raja Gajak <no-reply@rajagajak.in>
+```
+
+Set `FRONTEND_URL` to the exact public frontend origin/base path that serves
+the site, and include that origin in `FRONTEND_URLS` for CORS. Use an SMTP
+account or transactional email provider with permission to send from
+`EMAIL_FROM`. Port 587 typically uses `SMTP_SECURE=false` (STARTTLS); port 465
+typically uses `SMTP_SECURE=true`. Keep SMTP credentials only in the backend
+environment and never in frontend `VITE_*` variables. If delivery fails, the
+temporary token is cleared and the endpoint returns a safe service error.
+
+Forgot-password requests are limited to 5 per IP per 15 minutes; reset
+submissions are limited to 10 per IP per 15 minutes. The limiter uses the
+existing in-memory `express-rate-limit` store, so production deployments with
+multiple API instances should configure a shared rate-limit store. Configure
+the email provider and deploy the backend before exposing the frontend links.
+If SMTP delivery fails, the token is cleared where possible, the server logs a
+safe error without account/token/provider details, and clients still receive
+the same generic response to prevent account enumeration. Do not deploy real
+credentials in source control.
 
 Razorpay online checkout fetches the public key from `GET /api/payment/config`
 (also available at `/api/v1/payment/config`) before using

@@ -1,7 +1,7 @@
 import { joinApiPath, normalizeApiBase } from "../utils/apiUrl.js";
 
 const API_BASE = normalizeApiBase(
-  (import.meta.env.VITE_API_URL || "https://api.rajagajak.tech").trim(),
+  (import.meta.env.VITE_API_URL || "https://api.rajagajak.tech/0").trim(),
 );
 const API_ROOT = `${API_BASE}/api/v1`;
 const API_COMPAT_ROOT = `${API_BASE}/api`;
@@ -63,6 +63,16 @@ export const signup = (userData) =>
   });
 export const login = (credentials) =>
   request("/auth/login", { method: "POST", body: JSON.stringify(credentials) });
+export const requestPasswordReset = (email) =>
+  request("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+export const resetPassword = (token, password, confirmPassword) =>
+  request("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password, confirmPassword }),
+  });
 export const profile = () => request("/auth/profile");
 export const updateProfile = (user) =>
   request("/auth/profile", {

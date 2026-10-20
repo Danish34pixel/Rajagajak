@@ -1,8 +1,9 @@
 const jwt = require("jsonwebtoken");
 const env = require("../config/env");
+const User = require("../models/User.model");
 const { errorResponse } = require("../utils/response");
 
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
   const authorization = req.headers.authorization;
   const token =
     authorization && authorization.startsWith("Bearer ")
@@ -14,10 +15,18 @@ const authenticate = (req, res, next) => {
   }
 
   try {
-    req.user = jwt.verify(token, env.jwtSecret);
+    const payload = jwt.verify(token, env.jwtSecret);
+    const user = await User.findById(payload.sub).select("+tokenVersion");
+    if (!user || (payload.tokenVersion || 0) !== (user.tokenVersion || 0)) {
+      return errorResponse(res, "Invalid or expired token", 401);
+    }
+    req.user = payload;
     return next();
   } catch (error) {
-    return errorResponse(res, "Invalid or expired token", 401);
+    if (error instanceof jwt.JsonWebTokenError) {
+      return errorResponse(res, "Invalid or expired token", 401);
+    }
+    return next(error);
   }
 };
 

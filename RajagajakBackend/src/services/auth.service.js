@@ -5,7 +5,11 @@ const env = require("../config/env");
 
 const createToken = (user) =>
   jwt.sign(
-    { sub: user._id.toString(), role: user.role || "user" },
+    {
+      sub: user._id.toString(),
+      role: user.role || "user",
+      tokenVersion: user.tokenVersion || 0,
+    },
     env.jwtSecret,
     { expiresIn: "7d" },
   );
@@ -66,7 +70,7 @@ const registerUser = async ({
 
 const loginUser = async (email, password) => {
   const user = await User.findOne({ email: email.trim().toLowerCase() }).select(
-    "+password",
+    "+password +tokenVersion",
   );
 
   if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -78,4 +82,4 @@ const loginUser = async (email, password) => {
   return { user, token: createToken(user) };
 };
 
-module.exports = { registerUser, loginUser };
+module.exports = { createToken, registerUser, loginUser };
