@@ -2,10 +2,13 @@ const asyncHandler = require("../utils/asyncHandler");
 const { errorResponse, successResponse } = require("../utils/response");
 const User = require("../models/User.model");
 const {
+  validateEmail,
   validateProfileUpdate,
+  validateResetPassword,
   validateSignup,
 } = require("../validators/auth.validator");
 const { loginUser, registerUser } = require("../services/auth.service");
+const passwordResetService = require("../services/password-reset.service");
 
 const signup = asyncHandler(async (req, res) => {
   const errors = validateSignup(req.body);
@@ -32,6 +35,40 @@ const login = asyncHandler(async (req, res) => {
 
   const { user, token } = await loginUser(email, password);
   return successResponse(res, { user: user.toSafeObject(), token });
+});
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  const email = req.body?.email;
+  if (!validateEmail(email)) {
+    return errorResponse(res, "A valid email address is required.", 400);
+  }
+
+  await passwordResetService.requestPasswordReset(email);
+  return successResponse(
+    res,
+    null,
+    "If an account exists for that email, reset instructions may be sent. If no message arrives, you can safely request another link.",
+  );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const errors = validateResetPassword(req.body || {});
+  if (errors.length > 0) {
+    return errorResponse(res, "Validation failed", 400, errors);
+  }
+
+  const updated = await passwordResetService.resetPassword(
+    req.body.token,
+    req.body.password,
+  );
+  if (!updated) {
+    return errorResponse(
+      res,
+      "This password reset link is invalid or has expired. Request a new one to continue.",
+      400,
+    );
+  }
+  return successResponse(res, null, "Password reset successfully.");
 });
 
 const getProfile = asyncHandler(async (req, res) => {
@@ -77,4 +114,11 @@ const updateProfile = asyncHandler(async (req, res) => {
   return successResponse(res, { user: user.toSafeObject() }, "Profile updated");
 });
 
-module.exports = { getProfile, login, signup, updateProfile };
+module.exports = {
+  forgotPassword,
+  getProfile,
+  login,
+  resetPassword,
+  signup,
+  updateProfile,
+};

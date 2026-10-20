@@ -64,4 +64,33 @@ const validateProfileUpdate = ({ name, mobile, email, address, pinCode }) => {
   return errors;
 };
 
-module.exports = { validateProfileUpdate, validateSignup };
+const validateEmail = (email) =>
+  typeof email === "string" && emailPattern.test(email.trim());
+
+const validateResetPassword = ({ token, password, confirmPassword }) => {
+  const errors = [];
+  if (
+    typeof token !== "string" ||
+    token.length < 32 ||
+    token.length > 128 ||
+    !/^[A-Za-z0-9_-]+$/.test(token)
+  ) {
+    errors.push("A valid reset token is required.");
+  }
+  if (typeof password !== "string" || password.length < 8) {
+    errors.push("Password must be at least 8 characters.");
+  } else if (Buffer.byteLength(password, "utf8") > 72) {
+    errors.push("Password must be no more than 72 bytes.");
+  }
+  if (typeof confirmPassword !== "string" || password !== confirmPassword) {
+    errors.push("Passwords do not match.");
+  }
+  return errors;
+};
+
+module.exports = {
+  validateEmail,
+  validateProfileUpdate,
+  validateResetPassword,
+  validateSignup,
+};

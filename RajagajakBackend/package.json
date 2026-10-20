@@ -26,6 +26,7 @@
     "mongoose": "^9.10.1",
     "mongosh": "^2.11.1",
     "multer": "^2.4.0",
+    "nodemailer": "^10.1.1",
     "razorpay": "^2.9.8",
     "sanitize-html": "^2.18.0"
   },
