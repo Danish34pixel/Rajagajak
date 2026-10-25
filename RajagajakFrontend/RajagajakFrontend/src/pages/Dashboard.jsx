@@ -3,7 +3,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  SlidersHorizontal,
 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -47,7 +46,6 @@ export default function Dashboard() {
   const { triggerFlight } = useFlyToCart();
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("default");
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState("");
@@ -84,15 +82,6 @@ export default function Dashboard() {
     };
   }, [refreshIndex]);
 
-  const categories = useMemo(() => {
-    const unique = new Set();
-    products.forEach((product) => {
-      const category = String(product.category || "").trim();
-      if (category) unique.add(category);
-    });
-    return ["All", ...Array.from(unique)];
-  }, [products]);
-
   const handleAddToCart = (item, event) => {
     if (
       Number.isFinite(Number(item.stock)) &&
@@ -120,12 +109,6 @@ export default function Dashboard() {
   const normalizedSearch = (searchParams.get("q") || "").trim().toLowerCase();
   const filteredProducts = useMemo(() => {
     let nextProducts = [...products];
-
-    if (selectedCategory !== "All") {
-      nextProducts = nextProducts.filter(
-        (item) => String(item.category || "").trim() === selectedCategory,
-      );
-    }
 
     if (normalizedSearch) {
       nextProducts = nextProducts.filter((item) => {
@@ -172,8 +155,8 @@ export default function Dashboard() {
     }
 
     return nextProducts;
-  }, [products, normalizedSearch, selectedCategory, sortBy]);
-  const paginationContext = `${normalizedSearch}\u0000${selectedCategory}`;
+  }, [products, normalizedSearch, sortBy]);
+  const paginationContext = normalizedSearch;
   const requestedPage =
     pagination.context === paginationContext ? pagination.page : 1;
   const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
@@ -339,36 +322,6 @@ export default function Dashboard() {
               )}
             </div>
             )}
-        </motion.section>
-
-        <motion.section
-          className="category-section"
-          variants={sectionVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          <div className="section-heading compact-heading">
-            <div>
-              <span className="eyebrow">Quick filters</span>
-              <h2>Shop by category</h2>
-            </div>
-            <SlidersHorizontal size={16} aria-hidden="true" />
-          </div>
-          <div className="category-scroll" aria-label="Product categories">
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                className={`category-pill ${selectedCategory === category ? "active" : ""}`}
-                onClick={() => {
-                  setSelectedCategory(category);
-                  setPagination({ context: "", page: 1 });
-                }}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
         </motion.section>
 
         <motion.section
