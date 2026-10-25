@@ -2,6 +2,8 @@ const env = require("../config/env");
 
 const DELIVERY_AREA_ERROR =
   "Sorry, we currently deliver only within our delivery area.";
+const INVALID_PINCODE_ERROR = "Please enter a valid serviceable Indian pincode.";
+const indianPostCache = new Map();
 
 const validateCoordinates = (coordinates) => {
   const latitude = Number(coordinates?.latitude);
@@ -75,6 +77,58 @@ const requestJson = async (url, options = {}) => {
   return response.json();
 };
 
+const requestExternalJson = async (url, options = {}) => {
+  const response = await fetch(url, {
+    ...options,
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!response.ok)
+    throw Object.assign(new Error("An external delivery provider failed."), {
+      statusCode: 502,
+    });
+  return response.json();
+};
+
+const getIndianPostOffice = async (pincode) => {
+  if (!/^\d{6}$/.test(String(pincode || "")))
+    throw Object.assign(new Error(INVALID_PINCODE_ERROR), { statusCode: 400 });
+  const cached = indianPostCache.get(pincode);
+  if (cached && cached.expiresAt > Date.now()) return cached.office;
+  let result;
+  try {
+    result = await requestExternalJson(
+      `https://api.postalpincode.in/pincode/${encodeURIComponent(pincode)}`,
+    );
+  } catch (error) {
+    if (error.statusCode) throw error;
+    throw Object.assign(
+      new Error("Pincode validation is temporarily unavailable."),
+      { statusCode: 502 },
+    );
+  }
+  const offices = result?.[0]?.Status === "Success" &&
+    Array.isArray(result[0].PostOffice)
+    ? result[0].PostOffice.filter(
+        (office) => String(office?.Pincode || "") === pincode,
+      )
+    : [];
+  if (!offices.length)
+    throw Object.assign(new Error(INVALID_PINCODE_ERROR), { statusCode: 400 });
+  if (indianPostCache.size >= 1000) {
+    const now = Date.now();
+    for (const [key, entry] of indianPostCache) {
+      if (entry.expiresAt <= now) indianPostCache.delete(key);
+    }
+    if (indianPostCache.size >= 1000)
+      indianPostCache.delete(indianPostCache.keys().next().value);
+  }
+  indianPostCache.set(pincode, {
+    office: offices[0],
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+  });
+  return offices[0];
+};
+
 const normalizeState = (state = "") => {
   const normalized = String(state).trim();
   const stateNames = {
@@ -100,8 +154,149 @@ const normalizeState = (state = "") => {
     jh: "Jharkhand",
     cg: "Chhattisgarh",
     go: "Goa",
+    "nct of delhi": "Delhi",
+    orissa: "Odisha",
+    pondicherry: "Puducherry",
+    uttaranchal: "Uttarakhand",
+    "jammu & kashmir": "Jammu and Kashmir",
+    "dadra and nagar haveli": "Dadra and Nagar Haveli and Daman and Diu",
+    "daman and diu": "Dadra and Nagar Haveli and Daman and Diu",
   };
   return stateNames[normalized.toLowerCase()] || normalized;
+};
+
+const supportedIndianRegions = new Set([
+  "andaman and nicobar islands",
+  "andhra pradesh",
+  "arunachal pradesh",
+  "assam",
+  "bihar",
+  "chandigarh",
+  "chhattisgarh",
+  "dadra and nagar haveli",
+  "dadra and nagar haveli and daman and diu",
+  "daman and diu",
+  "delhi",
+  "goa",
+  "gujarat",
+  "haryana",
+  "himachal pradesh",
+  "jammu and kashmir",
+  "jharkhand",
+  "karnataka",
+  "kerala",
+  "ladakh",
+  "lakshadweep",
+  "madhya pradesh",
+  "maharashtra",
+  "manipur",
+  "meghalaya",
+  "mizoram",
+  "nagaland",
+  "odisha",
+  "puducherry",
+  "punjab",
+  "rajasthan",
+  "sikkim",
+  "tamil nadu",
+  "telangana",
+  "tripura",
+  "uttar pradesh",
+  "uttarakhand",
+  "west bengal",
+]);
+
+const getShippingZone = (
+  state,
+  { distanceKm, distanceMethod } = {},
+  rates = env.shippingEstimateRates,
+) => {
+  if (!rates?.zones || typeof rates.zones !== "object")
+    throw new Error("Estimated shipping rates are not configured correctly.");
+  if (!supportedIndianRegions.has(normalizeState(state).toLowerCase()))
+    throw new Error("The delivery pincode does not have supported region data.");
+
+  const thresholds = rates.distanceThresholdsKm;
+  if (distanceMethod === "road" && Number.isFinite(distanceKm)) {
+    if (
+      !Number.isFinite(thresholds?.localMax) ||
+      !Number.isFinite(thresholds?.nearbyMax) ||
+      thresholds.localMax < 0 ||
+      thresholds.nearbyMax < thresholds.localMax
+    )
+      throw new Error("Estimated shipping distance settings are invalid.");
+    if (distanceKm <= thresholds.localMax) return "local";
+    if (distanceKm <= thresholds.nearbyMax) return "nearby-state";
+    return "distant-state";
+  }
+
+  const normalizedState = normalizeState(state).toLowerCase();
+  for (const [zone, configuration] of Object.entries(rates.zones)) {
+    if (!Array.isArray(configuration?.states))
+      throw new Error("Estimated shipping rates are not configured correctly.");
+    if (configuration.states.some(
+      (configuredState) =>
+        normalizeState(configuredState).toLowerCase() === normalizedState,
+    ))
+      return zone;
+  }
+  return "distant-state";
+};
+
+const calculateEstimatedShipping = (
+  { weightKg, state, distanceKm, distanceMethod },
+  rates = env.shippingEstimateRates,
+) => {
+  const { packagingWeightKg, baseWeightKg, weightSlabKg, zones } = rates;
+  if (
+    !Number.isFinite(weightKg) ||
+    weightKg <= 0 ||
+    !Number.isFinite(packagingWeightKg) ||
+    packagingWeightKg < 0 ||
+    !Number.isFinite(baseWeightKg) ||
+    baseWeightKg <= 0 ||
+    !Number.isFinite(weightSlabKg) ||
+    weightSlabKg <= 0
+  )
+    throw new Error("Estimated shipping weight settings are invalid.");
+
+  const zone = getShippingZone(
+    state,
+    { distanceKm, distanceMethod },
+    rates,
+  );
+  const zoneRates = zones[zone];
+  if (
+    !zoneRates ||
+    !Number.isFinite(zoneRates.baseCharge) ||
+    zoneRates.baseCharge <= 0 ||
+    !Number.isFinite(zoneRates.additionalChargePerSlab) ||
+    zoneRates.additionalChargePerSlab < 0 ||
+    !Number.isFinite(zoneRates.minimumCharge) ||
+    zoneRates.minimumCharge <= 0
+  )
+    throw new Error("Estimated shipping rates are not configured correctly.");
+
+  const shipmentWeightKg = weightKg + packagingWeightKg;
+  const additionalSlabs = Math.max(
+    0,
+    Math.ceil((shipmentWeightKg - baseWeightKg) / weightSlabKg),
+  );
+  const chargeableWeightKg = Number(
+    (baseWeightKg + additionalSlabs * weightSlabKg).toFixed(3),
+  );
+  const shippingCharge = Math.max(
+    zoneRates.minimumCharge,
+    zoneRates.baseCharge +
+      additionalSlabs * zoneRates.additionalChargePerSlab,
+  );
+  return {
+    shippingCharge,
+    shippingZone: zone,
+    shipmentWeightKg: Number(shipmentWeightKg.toFixed(3)),
+    chargeableWeightKg,
+    estimated: true,
+  };
 };
 
 const addressQuery = (address = {}) =>
@@ -255,13 +450,17 @@ const geocodeAddress = async (address) => {
       .toLowerCase();
   const postcodeFeature = postcodeResult.features?.find((feature) => {
     const properties = feature.properties || {};
-    const featureCity = properties.city || properties.district;
+    const featureCities = [
+      properties.city,
+      properties.district,
+      properties.county,
+    ].map(fold);
     return (
       properties.osm_key === "place" &&
       properties.osm_value === "postcode" &&
       String(properties.name || "") === pincode &&
       String(properties.countrycode || "").toUpperCase() === "IN" &&
-      fold(featureCity) === fold(city) &&
+      featureCities.includes(fold(city)) &&
       (!properties.state ||
         fold(properties.state) === fold(normalizeState(address.state)))
     );
@@ -402,33 +601,165 @@ const getRoadDistanceKm = async (origin, destination) => {
   }
 };
 
-const calculateDelivery = async ({ customerLocation, shippingAddress }) => {
-  let destination;
+const calculateDelivery = async ({
+  customerLocation,
+  shippingAddress,
+  items = [],
+}) => {
+  let destination = null;
+  let deliveryAddress;
+  let pincode;
+
   if (customerLocation) {
     const coordinates = validateCoordinates(customerLocation);
+    deliveryAddress = await reverseGeocode(coordinates);
+    pincode = deliveryAddress.pincode;
+    if (!/^\d{6}$/.test(pincode))
+      throw Object.assign(
+        new Error("A valid Indian pincode is required for this location."),
+        { statusCode: 400 },
+      );
     destination = {
       ...coordinates,
       geocodingPrecision: "gps",
-      resolvedAddress: await reverseGeocode(coordinates),
+      resolvedAddress: deliveryAddress,
     };
   } else {
-    destination = await geocodeAddress(shippingAddress);
+    if (
+      !shippingAddress ||
+      (!shippingAddress.address && !shippingAddress.houseShop) ||
+      !shippingAddress.city ||
+      !shippingAddress.state
+    )
+      throw Object.assign(new Error("A complete delivery address is required."), {
+        statusCode: 400,
+      });
+    pincode = String(shippingAddress.pincode || "").trim();
+    deliveryAddress = shippingAddress;
   }
+
+  const postOffice = await getIndianPostOffice(pincode);
+  const postalState = normalizeState(postOffice.State);
+  if (!postalState || !postOffice.District)
+    throw Object.assign(
+      new Error("The delivery pincode does not have supported region data."),
+      { statusCode: 400 },
+    );
+  if (
+    deliveryAddress.state &&
+    normalizeState(deliveryAddress.state).toLowerCase() !==
+      postalState.toLowerCase()
+  )
+    throw Object.assign(new Error(INVALID_PINCODE_ERROR), { statusCode: 400 });
+
+  if (!customerLocation) {
+    try {
+      const geocoded = await geocodeAddress(shippingAddress);
+      if (geocoded.resolvedAddress.pincode !== pincode)
+        throw Object.assign(
+          new Error("The address does not match the supplied pincode."),
+          { statusCode: 400 },
+        );
+      destination = geocoded;
+    } catch (error) {
+      if (error.statusCode) throw error;
+      destination = null;
+    }
+  }
+
+  if (!destination?.resolvedAddress) {
+    deliveryAddress = locationParts({
+      building: shippingAddress?.building,
+      houseNumber: shippingAddress?.houseNumber,
+      road: shippingAddress?.road,
+      locality: shippingAddress?.locality,
+      area: shippingAddress?.area,
+      district: postOffice.District,
+      city: shippingAddress?.city || postOffice.District,
+      state: postOffice.State,
+      pincode,
+      country: "India",
+    });
+  } else {
+    deliveryAddress = destination.resolvedAddress;
+  }
+
   const origin = validateCoordinates(env.storeLocation);
-  const route = await getRoadDistanceKm(origin, destination);
-  assertWithinDeliveryDistance(route.distanceKm);
+  let route = null;
+  if (destination) {
+    route = await getRoadDistanceKm(origin, destination);
+    if (route.distanceKm <= env.shippingRates.maximumDistanceKm) {
+      return {
+        distanceKm: Number(route.distanceKm.toFixed(3)),
+        shippingCharge: calculateShippingCharge(route.distanceKm),
+        shippingMethod: "local",
+        estimated: false,
+        distanceMethod: route.method,
+        geocodingPrecision: destination.geocodingPrecision,
+        location: deliveryAddress,
+        fullAddress: deliveryAddress.fullAddress,
+        locationDetected: Boolean(customerLocation),
+        destination: {
+          latitude: destination.latitude,
+          longitude: destination.longitude,
+        },
+      };
+    }
+  }
+
+  if (
+    !destination &&
+    (String(postOffice.District).trim().toLowerCase() === "bhopal" ||
+      String(shippingAddress?.city || "").trim().toLowerCase() === "bhopal")
+  )
+    throw Object.assign(
+      new Error(
+        "We couldn't confirm the Bhopal delivery distance. Please try again or enter a more complete address.",
+      ),
+      { statusCode: 400 },
+    );
+  if (!Array.isArray(items) || items.length === 0)
+    throw Object.assign(
+      new Error("A cart is required to calculate shipping charges."),
+      { statusCode: 400 },
+    );
+  const cartWeightKg = items.reduce(
+    (total, item) => total + Number(item.quantityKg || 0),
+    0,
+  );
+  const estimate = calculateEstimatedShipping({
+    weightKg: cartWeightKg,
+    state: postalState,
+    distanceKm: route?.distanceKm,
+    distanceMethod: route?.method,
+  });
+  const fullAddress =
+    deliveryAddress.fullAddress ||
+    locationParts({
+      ...deliveryAddress,
+      pincode,
+      state: postalState,
+      country: "India",
+    }).fullAddress;
   return {
-    distanceKm: Number(route.distanceKm.toFixed(3)),
-    shippingCharge: calculateShippingCharge(route.distanceKm),
-    distanceMethod: route.method,
-    geocodingPrecision: destination.geocodingPrecision,
-    location: destination.resolvedAddress,
-    fullAddress: destination.resolvedAddress.fullAddress,
+    distanceKm: route ? Number(route.distanceKm.toFixed(3)) : null,
+    shippingCharge: estimate.shippingCharge,
+    shippingMethod: "estimated",
+    shippingZone: estimate.shippingZone,
+    estimated: true,
+    shipmentWeightKg: estimate.shipmentWeightKg,
+    chargeableWeightKg: estimate.chargeableWeightKg,
+    distanceMethod: route?.method,
+    geocodingPrecision: destination?.geocodingPrecision || "postcode",
+    location: deliveryAddress,
+    fullAddress,
     locationDetected: Boolean(customerLocation),
-    destination: {
-      latitude: destination.latitude,
-      longitude: destination.longitude,
-    },
+    ...(destination && {
+      destination: {
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+      },
+    }),
   };
 };
 
@@ -437,5 +768,8 @@ module.exports = {
   calculateDelivery,
   calculateHaversineDistance,
   calculateShippingCharge,
+  calculateEstimatedShipping,
+  getShippingZone,
   assertWithinDeliveryDistance,
+  getIndianPostOffice,
 };

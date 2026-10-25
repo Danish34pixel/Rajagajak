@@ -1,0 +1,35 @@
+{
+  "packagingWeightKg": 0.25,
+  "weightSlabKg": 0.5,
+  "baseWeightKg": 0.5,
+  "distanceThresholdsKm": {
+    "localMax": 250,
+    "nearbyMax": 1000
+  },
+  "zones": {
+    "local": {
+      "states": ["Madhya Pradesh"],
+      "baseCharge": 85,
+      "additionalChargePerSlab": 30,
+      "minimumCharge": 85
+    },
+    "nearby-state": {
+      "states": [
+        "Chhattisgarh",
+        "Gujarat",
+        "Maharashtra",
+        "Rajasthan",
+        "Uttar Pradesh"
+      ],
+      "baseCharge": 125,
+      "additionalChargePerSlab": 45,
+      "minimumCharge": 125
+    },
+    "distant-state": {
+      "states": [],
+      "baseCharge": 175,
+      "additionalChargePerSlab": 65,
+      "minimumCharge": 175
+    }
+  }
+}

@@ -65,6 +65,17 @@ const normalizeAddress = (address = {}) => ({
 const deliveryErrorMessage = (error) => {
   if (error.message === "We couldn't find that delivery address.")
     return error.message;
+  if (
+    [
+      "Please enter a valid serviceable Indian pincode.",
+      "A valid Indian pincode is required for this location.",
+      "The delivery pincode does not have supported region data.",
+      "The address does not match the supplied pincode.",
+      "We couldn't confirm the Bhopal delivery distance. Please try again or enter a more complete address.",
+      "A cart is required to calculate shipping charges.",
+    ].includes(error.message)
+  )
+    return error.message;
   if (error.message === "A complete delivery address is required.")
     return "Please enter a valid delivery address.";
   if (
@@ -83,6 +94,12 @@ const isDeliveryInputError = (error) =>
     "We couldn't get a readable address for your current location.",
     "Sorry, we currently deliver only within our delivery area.",
     "Please enter a valid delivery address.",
+    "Please enter a valid serviceable Indian pincode.",
+    "A valid Indian pincode is required for this location.",
+    "The delivery pincode does not have supported region data.",
+    "The address does not match the supplied pincode.",
+    "We couldn't confirm the Bhopal delivery distance. Please try again or enter a more complete address.",
+    "A cart is required to calculate shipping charges.",
   ].includes(error.message);
 
 const paymentOrderError = (error) => {
@@ -122,7 +139,7 @@ const buildPaymentOrder = async ({
   }
   if (items.some((item) => !item || typeof item !== "object")) {
     throw paymentInputError(
-      "Invalid order item quantity. Choose at least 300 g in 100 g increments.",
+      "Invalid order item quantity. Choose at least 300 g in 1 g increments.",
     );
   }
   if (!shippingAddress || typeof shippingAddress !== "object") {
@@ -145,11 +162,22 @@ const buildPaymentOrder = async ({
     );
   }
 
+  let calculatedItems;
+  try {
+    calculatedItems = await calculateItems(items);
+  } catch (error) {
+    const orderError = paymentOrderError(error);
+    if (orderError)
+      throw paymentInputError(orderError.message, orderError.statusCode);
+    throw error;
+  }
+
   let shipping;
   try {
     shipping = await calculateDelivery({
       customerLocation,
       shippingAddress: billingAddress,
+      items: calculatedItems.map(({ snapshot }) => snapshot),
     });
     if (hasCustomerLocation) {
       const location = shipping.location || {};
@@ -183,27 +211,19 @@ const buildPaymentOrder = async ({
       billingAddress.locationDetected = false;
       billingAddress.locationSource = "manual";
     }
-    billingAddress.latitude = shipping.destination.latitude;
-    billingAddress.longitude = shipping.destination.longitude;
-  } catch (error) {
-    if (isDeliveryInputError(error)) {
-      throw paymentInputError(deliveryErrorMessage(error));
+    if (shipping.destination) {
+      billingAddress.latitude = shipping.destination.latitude;
+      billingAddress.longitude = shipping.destination.longitude;
     }
+  } catch (error) {
+    if (isDeliveryInputError(error) || error.statusCode === 400)
+      throw paymentInputError(deliveryErrorMessage(error), error.statusCode);
     throw Object.assign(
       new Error("Delivery location service is unavailable."),
       { statusCode: 502 },
     );
   }
 
-  let calculatedItems;
-  try {
-    calculatedItems = await calculateItems(items);
-  } catch (error) {
-    const orderError = paymentOrderError(error);
-    if (orderError)
-      throw paymentInputError(orderError.message, orderError.statusCode);
-    throw error;
-  }
   const baseSnapshots = calculatedItems.map((item) => item.snapshot);
   let snapshots = baseSnapshots;
   let pricing = buildPricing(snapshots, shipping.shippingCharge);
@@ -312,7 +332,9 @@ const createRazorpayOrderHandler = ({
         return errorResponse(res, orderError.message, orderError.statusCode);
       }
 
-      const statusCode = error?.statusCode === 502 ? 502 : 500;
+      const statusCode = [502, 503].includes(error?.statusCode)
+        ? error.statusCode
+        : 500;
       const stage =
         error?.statusCode === 502
           ? "shipping_calculation"
@@ -333,6 +355,8 @@ const createRazorpayOrderHandler = ({
         res,
         statusCode === 502
           ? "We couldn't verify the delivery location. Please try again shortly."
+          : statusCode === 503
+            ? error.message
           : "We couldn't prepare this payment. Please try again or contact support.",
         statusCode,
       );

@@ -32,6 +32,17 @@ const deliveryErrorMessage = (error) => {
   if (error.message === DELIVERY_AREA_ERROR) return DELIVERY_AREA_ERROR;
   if (error.message === "We couldn't find that delivery address.")
     return error.message;
+  if (
+    [
+      "Please enter a valid serviceable Indian pincode.",
+      "A valid Indian pincode is required for this location.",
+      "The delivery pincode does not have supported region data.",
+      "The address does not match the supplied pincode.",
+      "We couldn't confirm the Bhopal delivery distance. Please try again or enter a more complete address.",
+      "A cart is required to calculate shipping charges.",
+    ].includes(error.message)
+  )
+    return error.message;
   if (error.message === "A complete delivery address is required.")
     return "Please enter a valid delivery address.";
   if (
@@ -54,11 +65,10 @@ const calculateItems = async (requestedItems) => {
       !Number.isFinite(quantityKg) ||
       quantityGrams < 300 ||
       Math.abs(quantityKg * 1000 - quantityGrams) > 1e-7 ||
-      quantityGrams % 100 !== 0 ||
-      quantityKg > 10000
+      !Number.isSafeInteger(quantityGrams)
     )
       throw new Error(
-        "Invalid order item quantity. Choose at least 300 g in 100 g increments.",
+        "Invalid order item quantity. Choose at least 300 g in 1 g increments.",
       );
     const key = item.productId;
     merged.set(key, {
@@ -149,13 +159,19 @@ const quoteOrder = asyncHandler(async (req, res) => {
 
 const quoteShipping = asyncHandler(async (req, res) => {
   try {
+    const calculated = await calculateItems(req.body.items);
     const shipping = await calculateDelivery({
       customerLocation: req.body.customerLocation,
       shippingAddress: req.body.shippingAddress,
+      items: calculated.map(({ snapshot }) => snapshot),
     });
     return successResponse(res, { shipping });
   } catch (error) {
-    return errorResponse(res, deliveryErrorMessage(error), 400);
+    return errorResponse(
+      res,
+      deliveryErrorMessage(error),
+      error.statusCode || 400,
+    );
   }
 });
 

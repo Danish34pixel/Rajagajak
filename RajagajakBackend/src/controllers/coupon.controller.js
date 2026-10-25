@@ -417,6 +417,7 @@ const applyCoupon = asyncHandler(async (req, res) => {
     const shipping = await calculateDelivery({
       customerLocation: req.body.customerLocation,
       shippingAddress: delivery,
+      items,
     });
     const userId = req.user?.sub;
     const accountBoundCoupon =
@@ -447,7 +448,13 @@ const applyCoupon = asyncHandler(async (req, res) => {
     });
     return successResponse(res, result);
   } catch (error) {
-    return errorResponse(res, error.message || "Unable to apply coupon.", 400);
+    return errorResponse(
+      res,
+      error.statusCode >= 500
+        ? "Shipping calculation is temporarily unavailable. Please try again shortly."
+        : error.message || "Unable to apply coupon.",
+      error.statusCode || 400,
+    );
   }
 });
 module.exports = {

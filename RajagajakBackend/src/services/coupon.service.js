@@ -178,7 +178,9 @@ const evaluateCoupon = ({
     throw new Error(COUPON_ERRORS.PINCODE);
   if (
     coupon.radiusKm != null &&
-    (!shipping || shipping.distanceKm > coupon.radiusKm)
+    (shipping?.distanceKm == null ||
+      !Number.isFinite(Number(shipping.distanceKm)) ||
+      shipping.distanceKm > coupon.radiusKm)
   )
     throw new Error(COUPON_ERRORS.RADIUS);
 

@@ -15,13 +15,26 @@ export const formatQuantity = (quantityKg) => {
 export const normalizeQuantityKg = (quantityKg) => {
   const value = Number(quantityKg);
   if (!Number.isFinite(value) || value <= 0) return DEFAULT_QUANTITY_KG;
-  return Math.max(MIN_QUANTITY_KG, Math.round(value * 10) / 10);
+  return Math.max(MIN_QUANTITY_KG, Math.round(value * 1000) / 1000);
+};
+
+export const isValidCustomQuantityKg = (quantityKg, maxStockKg) => {
+  const quantity = Number(quantityKg);
+  const maxStock = Number(maxStockKg);
+  const grams = Math.round(quantity * 1000);
+
+  return (
+    Number.isFinite(quantity) &&
+    quantity >= MIN_QUANTITY_KG &&
+    (!Number.isFinite(maxStock) || quantity <= maxStock) &&
+    Math.abs(quantity * 1000 - grams) < 1e-7
+  );
 };
 
 export const getSelectableMaxStockKg = (stockKg) => {
   const stock = Number(stockKg);
-  if (!Number.isFinite(stock)) return 10;
-  return Math.floor((stock + Number.EPSILON) * 10) / 10;
+  if (!Number.isFinite(stock)) return Infinity;
+  return Math.floor((stock + Number.EPSILON) * 1000) / 1000;
 };
 
 export const getQuantityOptions = (maxStockKg = 10) => {

@@ -1,12 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, RefreshCw, Search, SlidersHorizontal } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  SlidersHorizontal,
+} from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Navbar from "../components/Navbar.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
+import ProductCard from "../components/ProductCard.jsx";
 import { useCart } from "../context/useCart.js";
 import { useFlyToCart } from "../components/FlyToCart.jsx";
 import * as api from "../services/api.js";
+import { shuffleProducts } from "../utils/products.js";
+import { getPageNumbers, getPageSlice } from "../utils/pagination.js";
 import {
   DEFAULT_QUANTITY_KG,
   formatQuantity,
@@ -32,39 +40,49 @@ const itemVariants = {
   },
 };
 
-const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
+const PRODUCTS_PER_PAGE = 10;
 
 export default function Dashboard() {
   const { addToCart } = useCart();
   const { triggerFlight } = useFlyToCart();
   const [searchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
-  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("default");
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState("");
   const [cartMessage, setCartMessage] = useState("");
-
-  useEffect(() => {
-    setSearchQuery(searchParams.get("q") || "");
-  }, [searchParams]);
+  const [refreshIndex, setRefreshIndex] = useState(0);
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [pagination, setPagination] = useState({ context: "", page: 1 });
+  const productsSectionRef = useRef(null);
 
   const loadProducts = () => {
     setProductsLoading(true);
     setProductsError("");
-    api
-      .products()
-      .then((response) => setProducts(response.data || []))
-      .catch(() =>
-        setProductsError("Unable to load products. Please try again."),
-      )
-      .finally(() => setProductsLoading(false));
+    setRefreshIndex((current) => current + 1);
   };
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    let cancelled = false;
+    api
+      .products()
+      .then((response) => {
+        if (!cancelled) setProducts(response.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProductsError("Unable to load products. Please try again.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setProductsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshIndex]);
 
   const categories = useMemo(() => {
     const unique = new Set();
@@ -99,7 +117,7 @@ export default function Dashboard() {
     handleAddToCart.timeout = window.setTimeout(() => setCartMessage(""), 2200);
   };
 
-  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const normalizedSearch = (searchParams.get("q") || "").trim().toLowerCase();
   const filteredProducts = useMemo(() => {
     let nextProducts = [...products];
 
@@ -155,58 +173,172 @@ export default function Dashboard() {
 
     return nextProducts;
   }, [products, normalizedSearch, selectedCategory, sortBy]);
+  const paginationContext = `${normalizedSearch}\u0000${selectedCategory}`;
+  const requestedPage =
+    pagination.context === paginationContext ? pagination.page : 1;
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const currentPage = Math.min(requestedPage, Math.max(totalPages, 1));
+  const visibleProducts = useMemo(
+    () => getPageSlice(filteredProducts, currentPage, PRODUCTS_PER_PAGE),
+    [filteredProducts, currentPage],
+  );
+  const pageNumbers = getPageNumbers(totalPages, currentPage);
+
+  const changePage = (page) => {
+    setPagination({ context: paginationContext, page });
+    productsSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const featuredProducts = useMemo(
+    () =>
+      shuffleProducts(
+        Array.from(
+          new Map(
+            products
+              .filter((item) => item.images?.some(Boolean) || item.image)
+              .map((item) => [
+                String(item._id || item.id || item.title),
+                item,
+              ]),
+          ).values(),
+        ),
+      ).slice(0, 4),
+    [products],
+  );
+  const featuredProduct = featuredProducts.length
+    ? featuredProducts[featuredIndex % featuredProducts.length]
+    : null;
+  const featuredImage =
+    featuredProduct?.images?.find(Boolean) || featuredProduct?.image;
+
+  useEffect(() => {
+    if (featuredProducts.length < 2) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setFeaturedIndex((current) => (current + 1) % featuredProducts.length);
+    }, 4500);
+
+    return () => window.clearInterval(intervalId);
+  }, [featuredProducts]);
+
+  const moveFeatured = (direction) => {
+    setFeaturedIndex(
+      (current) =>
+        (current + direction + featuredProducts.length) %
+        featuredProducts.length,
+    );
+  };
 
   return (
     <div className="app-shell">
       <Navbar />
       <main className="dashboard ecommerce-dashboard">
         <motion.section
-          className="hero-section"
+          className="featured-section"
           variants={sectionVariants}
           initial="hidden"
           animate="visible"
         >
-          <motion.div
-            className="hero-copy"
-            initial={{ opacity: 0, x: -18 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.48, ease: "easeOut" }}
-          >
-            <span className="eyebrow">Fresh at Rajagajak</span>
-            <h1>Fresh products at the best prices</h1>
-            <p>
-              Discover pantry essentials, daily groceries, and trusted staples
-              delivered with freshness and value you can count on.
-            </p>
-            <div className="hero-actions">
-              <a
-                href="#products-section"
-                className="primary-button hero-button"
-              >
-                Shop now
-              </a>
-              <Link className="secondary-link" to="/bag">
-                View cart
-              </Link>
+          <div className="section-heading featured-heading">
+            <div>
+              <span className="eyebrow">Handpicked for you</span>
+              <h1>Discover Our Favourites</h1>
             </div>
-          </motion.div>
-          <motion.div
-            className="hero-highlight"
-            initial={{ opacity: 0, x: 18 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <span className="hero-badge">Today&apos;s fresh picks</span>
-            <h3>Best value basket</h3>
-            <div className="mini-stat">
-              <strong>UP TO 25% OFF</strong>
-              <span>On daily essentials</span>
+          </div>
+          {productsLoading && (
+            <div
+              className="featured-image-skeleton"
+              aria-label="Loading featured image"
+            >
+              <div className="product-skeleton" />
             </div>
-            <div className="mini-stat">
-              <strong>1 KG</strong>
-              <span>To 10 KG choices</span>
+          )}
+          {productsError && (
+            <div className="featured-state">
+              <p>We couldn&apos;t load featured products right now.</p>
+              <button className="retry-button" type="button" onClick={loadProducts}>
+                Try again
+              </button>
             </div>
-          </motion.div>
+          )}
+          {!productsLoading && !productsError && products.length === 0 && (
+            <p className="featured-state">Products will appear here when available.</p>
+          )}
+          {!productsLoading &&
+            !productsError &&
+            products.length > 0 &&
+            !featuredProduct && (
+              <p className="featured-state">
+                Featured product images are not available right now.
+              </p>
+            )}
+          {!productsLoading &&
+            !productsError &&
+            featuredProduct && (
+            <div className="featured-image-carousel">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  className="featured-image-slide"
+                  key={featuredProduct._id || featuredProduct.id}
+                  initial={{ opacity: 0, scale: 1.015 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                >
+                  <Link
+                    to={`/products/${featuredProduct._id || featuredProduct.id}`}
+                    aria-label={`View ${featuredProduct.title} details`}
+                  >
+                    <img
+                      src={featuredImage}
+                      alt={featuredProduct.title}
+                      loading="lazy"
+                    />
+                  </Link>
+                </motion.div>
+              </AnimatePresence>
+              {featuredProducts.length > 1 && (
+                <>
+                  <button
+                    className="featured-image-control featured-image-previous"
+                    type="button"
+                    aria-label="Show previous featured product image"
+                    onClick={() => moveFeatured(-1)}
+                  >
+                    <ChevronLeft size={22} />
+                  </button>
+                  <button
+                    className="featured-image-control featured-image-next"
+                    type="button"
+                    aria-label="Show next featured product image"
+                    onClick={() => moveFeatured(1)}
+                  >
+                    <ChevronRight size={22} />
+                  </button>
+                  <div
+                    className="featured-image-indicators"
+                    aria-label="Featured image slides"
+                  >
+                    {featuredProducts.map((item, index) => (
+                      <button
+                        key={item._id || item.id}
+                        type="button"
+                        className={index === featuredIndex ? "active" : ""}
+                        aria-label={`Show featured product image ${index + 1}`}
+                        aria-current={
+                          index === featuredIndex ? "true" : undefined
+                        }
+                        onClick={() => setFeaturedIndex(index)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            )}
         </motion.section>
 
         <motion.section
@@ -228,7 +360,10 @@ export default function Dashboard() {
                 key={category}
                 type="button"
                 className={`category-pill ${selectedCategory === category ? "active" : ""}`}
-                onClick={() => setSelectedCategory(category)}
+                onClick={() => {
+                  setSelectedCategory(category);
+                  setPagination({ context: "", page: 1 });
+                }}
               >
                 {category}
               </button>
@@ -238,6 +373,7 @@ export default function Dashboard() {
 
         <motion.section
           id="products-section"
+          ref={productsSectionRef}
           className="products-section"
           variants={sectionVariants}
           initial="hidden"
@@ -283,6 +419,19 @@ export default function Dashboard() {
               </select>
             </label>
           </div>
+
+          {!productsLoading &&
+            !productsError &&
+            filteredProducts.length > 0 && (
+              <p className="product-results-count" aria-live="polite">
+                Showing {(currentPage - 1) * PRODUCTS_PER_PAGE + 1}–
+                {Math.min(
+                  currentPage * PRODUCTS_PER_PAGE,
+                  filteredProducts.length,
+                )}{" "}
+                of {filteredProducts.length} products
+              </p>
+            )}
 
           {cartMessage && <div className="success-note">{cartMessage}</div>}
 
@@ -355,112 +504,66 @@ export default function Dashboard() {
                   animate="visible"
                   variants={sectionVariants}
                 >
-                  {filteredProducts.map((item) => {
-                    const images = item.images?.length
-                      ? item.images
-                      : item.image
-                        ? [item.image]
-                        : [];
-                    const bulletPoints = Array.isArray(item.bulletPoints)
-                      ? item.bulletPoints
-                      : [];
-                    const description =
-                      item.description ||
-                      bulletPoints.join(" ") ||
-                      "Explore this product from Rajagajak.";
-                    const pricePerKg = Number(
-                      item.finalPrice ?? item.pricePerKg ?? item.price ?? 0,
-                    );
-                    const mrpPerKg = Number(
-                      item.mrp ??
-                        item.mrpPerKg ??
-                        item.pricePerKg ??
-                        pricePerKg ??
-                        0,
-                    );
-
-                    return (
-                      <motion.article
-                        className="product-card modern-product-card"
-                        key={item._id}
-                        variants={itemVariants}
-                        whileHover={{ y: -4 }}
-                      >
-                        <div className="product-card-media">
-                          {images[0] ? (
-                            <img src={images[0]} alt={item.title} />
-                          ) : (
-                            <div className="product-fallback">No image</div>
-                          )}
-                          {Number(item.discount || 0) > 0 && (
-                            <span className="product-badge">
-                              {item.discount}% OFF
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="product-card-body">
-                          <div className="product-card-meta">
-                            <span>
-                              {item.category || "Everyday essentials"}
-                            </span>
-                          </div>
-                          <h3>{item.title}</h3>
-                          <p className="product-card-description">
-                            {description}
-                          </p>
-
-                          <div className="product-card-pricing">
-                            <div className="price-stack">
-                              <del>{money(mrpPerKg)}/kg</del>
-                              <strong>{money(pricePerKg)}/kg</strong>
-                            </div>
-                            <p className="product-card-description">
-                              {formatQuantity(DEFAULT_QUANTITY_KG)}:{" "}
-                              {money(pricePerKg * DEFAULT_QUANTITY_KG)}
-                            </p>
-                            {Number(item.discount || 0) > 0 && (
-                              <span className="discount-tag">
-                                {item.discount}% OFF
-                              </span>
-                            )}
-                          </div>
-
-                          {bulletPoints.length > 0 && (
-                            <ul className="product-points">
-                              {bulletPoints.slice(0, 3).map((point) => (
-                                <li key={`${item._id}-${point}`}>{point}</li>
-                              ))}
-                            </ul>
-                          )}
-
-                          <div className="product-card-actions">
-                            <Link
-                              className="secondary-action"
-                              to={`/products/${item._id}`}
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              View Details
-                              <ArrowRight size={14} />
-                            </Link>
-                            <button
-                              type="button"
-                              className="primary-button product-cart-button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                handleAddToCart(item, event);
-                              }}
-                            >
-                              Add to Cart
-                            </button>
-                          </div>
-                        </div>
-                      </motion.article>
-                    );
-                  })}
+                  {visibleProducts.map((item) => (
+                    <ProductCard
+                      key={item._id || item.id}
+                      item={item}
+                      onAddToCart={handleAddToCart}
+                      variants={itemVariants}
+                    />
+                  ))}
                 </motion.div>
               )}
           </AnimatePresence>
+
+          {!productsLoading && !productsError && totalPages > 1 && (
+            <nav className="product-pagination" aria-label="Product pages">
+              <button
+                className="pagination-direction"
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => changePage(currentPage - 1)}
+                aria-label="Previous page"
+              >
+                <ChevronLeft size={17} />
+                <span>Previous</span>
+              </button>
+              <div className="pagination-pages">
+                {pageNumbers.map((page, index) =>
+                  page === "ellipsis" ? (
+                    <span
+                      className="pagination-ellipsis"
+                      key={`ellipsis-${index}`}
+                      aria-hidden="true"
+                    >
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      className={`pagination-page ${currentPage === page ? "active" : ""}`}
+                      key={page}
+                      type="button"
+                      aria-label={`Page ${page}`}
+                      aria-current={currentPage === page ? "page" : undefined}
+                      onClick={() => changePage(page)}
+                    >
+                      {page}
+                    </button>
+                  ),
+                )}
+              </div>
+              <button
+                className="pagination-direction"
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => changePage(currentPage + 1)}
+                aria-label="Next page"
+              >
+                <span>Next</span>
+                <ChevronRight size={17} />
+              </button>
+            </nav>
+          )}
         </motion.section>
       </main>
       <SiteFooter />

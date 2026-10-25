@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { PencilLine, X } from "lucide-react";
@@ -122,7 +122,7 @@ export default function Checkout() {
   const [customerLocation, setCustomerLocation] = useState(
     () => readCheckoutDraft().customerLocation || null,
   );
-  const [deliveryQuote, setDeliveryQuote] = useState(null);
+  const [deliveryQuoteState, setDeliveryQuoteState] = useState(null);
   const [deliveryError, setDeliveryError] = useState("");
   const [deliveryCalculating, setDeliveryCalculating] = useState(() => {
     const draft = readCheckoutDraft();
@@ -142,6 +142,22 @@ export default function Checkout() {
   const cartKey = cartItems
     .map((item) => `${item.productId}:${item.quantityKg}`)
     .join("|");
+  const deliveryQuote =
+    deliveryQuoteState?.cartKey === cartKey ? deliveryQuoteState.data : null;
+  const deliveryQuotePending =
+    deliveryCalculating ||
+    Boolean(
+      deliveryQuoteState &&
+        deliveryQuoteState.cartKey !== cartKey &&
+        deliveryMode &&
+        !manualAddressOpen,
+    );
+  const setDeliveryQuote = useCallback(
+    (value) =>
+      setDeliveryQuoteState(value ? { cartKey, data: value } : null),
+    [cartKey],
+  );
+  const lastShippingCartKey = useRef(cartKey);
   const [quoteResult, setQuoteResult] = useState(null);
   const [quoteFailure, setQuoteFailure] = useState(null);
   const quote = quoteResult?.key === cartKey ? quoteResult.data : null;
@@ -218,6 +234,10 @@ export default function Checkout() {
           latitude: customerLocation.latitude,
           longitude: customerLocation.longitude,
         },
+        items: cartItems.map(({ productId, quantityKg }) => ({
+          productId,
+          quantityKg,
+        })),
       })
       .then((response) => {
         if (!active) return;
@@ -271,7 +291,56 @@ export default function Checkout() {
     return () => {
       active = false;
     };
-  }, [deliveryMode, customerLocation]);
+  }, [deliveryMode, customerLocation, cartItems, cartKey, setDeliveryQuote]);
+
+  useEffect(() => {
+    if (lastShippingCartKey.current === cartKey) return;
+    lastShippingCartKey.current = cartKey;
+    if (
+      !cartItems.length ||
+      deliveryMode !== "address" ||
+      manualAddressOpen ||
+      !address.fullAddress ||
+      !address.pincode
+    ) {
+      return;
+    }
+
+    let active = true;
+    api
+      .quoteShipping({
+        shippingAddress: deliveryAddressPayload(address),
+        items: cartItems.map(({ productId, quantityKg }) => ({
+          productId,
+          quantityKg,
+        })),
+      })
+      .then((response) => {
+        if (active) setDeliveryQuote(response.data.shipping);
+      })
+      .catch((requestError) => {
+        if (active) {
+          setDeliveryQuote(null);
+          setDeliveryError(
+            requestError.message ||
+              "Unable to recalculate delivery for the updated cart.",
+          );
+        }
+      })
+      .finally(() => {
+        if (active) setDeliveryCalculating(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [
+    cartKey,
+    cartItems,
+    deliveryMode,
+    manualAddressOpen,
+    address,
+    setDeliveryQuote,
+  ]);
 
   const updateAddress = (field, value) => {
     removeCoupon();
@@ -361,6 +430,10 @@ export default function Checkout() {
           state: address.state,
           pincode: address.pincode,
         },
+        items: cartItems.map(({ productId, quantityKg }) => ({
+          productId,
+          quantityKg,
+        })),
       });
       setDeliveryQuote(response.data.shipping);
       setAddress((current) => ({
@@ -644,7 +717,7 @@ export default function Checkout() {
               <button
                 className="outline-action"
                 type="button"
-                disabled={gettingLocation || deliveryCalculating}
+                disabled={gettingLocation || deliveryQuotePending}
                 onClick={useDeviceLocation}
               >
                 {gettingLocation
@@ -655,7 +728,7 @@ export default function Checkout() {
               <button
                 className="outline-action"
                 type="button"
-                disabled={gettingLocation || deliveryCalculating}
+                disabled={gettingLocation || deliveryQuotePending}
                 aria-expanded={manualAddressOpen}
                 onClick={
                   deliveryMode === "gps" && address.locationDetected
@@ -670,7 +743,7 @@ export default function Checkout() {
                     : "Enter a delivery address"}
               </button>
             </div>
-            {deliveryCalculating && (
+            {deliveryQuotePending && (
               <p className="delivery-location-status">
                 Calculating delivery charges...
               </p>
@@ -709,27 +782,55 @@ export default function Checkout() {
                   </div>
                 )}
                 <div>
-                  <span>Delivery Distance</span>
+                  <span>
+                    {deliveryQuote.estimated
+                      ? "Estimated shipping zone"
+                      : "Delivery Distance"}
+                  </span>
                   <strong>
-                    {Number(deliveryQuote.distanceKm).toFixed(1)} KM
+                    {deliveryQuote.estimated
+                      ? deliveryQuote.shippingZone
+                          ?.replace("-", " ")
+                          .replace(/\b\w/g, (letter) => letter.toUpperCase())
+                      : `${Number(deliveryQuote.distanceKm).toFixed(1)} KM`}
                   </strong>
                 </div>
                 <div>
-                  <span>Shipping Charges</span>
+                  <span>
+                    {deliveryQuote.estimated
+                      ? "Estimated shipping charges"
+                      : "Shipping Charges"}
+                  </span>
                   <strong>{money(deliveryQuote.shippingCharge)}</strong>
                 </div>
+                {deliveryQuote.estimated && (
+                  <>
+                    <div>
+                      <span>Parcel weight (incl. packaging)</span>
+                      <strong>
+                        {Number(deliveryQuote.shipmentWeightKg).toFixed(2)} KG
+                      </strong>
+                    </div>
+                    <small>
+                      This is an estimated shipping charge, not a live courier
+                      quote. Final service availability and carrier charges may
+                      vary.
+                    </small>
+                  </>
+                )}
                 {deliveryQuote.distanceMethod === "haversine" && (
                   <small>
                     Road routing is unavailable; showing an approximate direct
                     distance.
                   </small>
                 )}
-                {deliveryQuote.geocodingPrecision === "postcode" && (
+                {!deliveryQuote.estimated &&
+                  deliveryQuote.geocodingPrecision === "postcode" && (
                   <small>
                     Exact street match was unavailable; distance is estimated
                     from this postcode area.
                   </small>
-                )}
+                  )}
               </div>
             )}
             <AnimatePresence initial={false}>
@@ -745,7 +846,7 @@ export default function Checkout() {
                   <h2>Delivery address</h2>
                   <fieldset
                     className="checkout-fields"
-                    disabled={deliveryCalculating}
+                    disabled={deliveryQuotePending}
                   >
                     <input
                       required
@@ -818,10 +919,10 @@ export default function Checkout() {
                   <button
                     className="primary-action calculate-delivery-action"
                     type="button"
-                    disabled={deliveryCalculating || gettingLocation}
+                    disabled={deliveryQuotePending || gettingLocation}
                     onClick={calculateManualDelivery}
                   >
-                    {deliveryCalculating
+                    {deliveryQuotePending
                       ? "Calculating delivery charges..."
                       : "Confirm address"}
                   </button>
@@ -1096,7 +1197,7 @@ export default function Checkout() {
                 submitting ||
                 !quote ||
                 !deliveryQuote ||
-                deliveryCalculating ||
+                deliveryQuotePending ||
                 gettingLocation
               }
             >

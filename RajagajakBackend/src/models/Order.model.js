@@ -73,16 +73,29 @@ const orderSchema = new mongoose.Schema(
       longitude: { type: Number, min: -180, max: 180 },
     },
     shipping: {
-      distanceKm: { type: Number, required: true, min: 0 },
+      distanceKm: { type: Number, min: 0 },
       shippingCharge: { type: Number, required: true, min: 0 },
+      shippingMethod: {
+        type: String,
+        enum: ["local", "estimated"],
+        default: "local",
+      },
+      shippingZone: {
+        type: String,
+        enum: ["local", "nearby-state", "distant-state", ""],
+        default: "",
+      },
+      estimated: { type: Boolean, default: false },
+      shipmentWeightKg: { type: Number, min: 0 },
+      chargeableWeightKg: { type: Number, min: 0 },
       distanceMethod: { type: String, enum: ["road", "haversine"] },
       geocodingPrecision: {
         type: String,
         enum: ["gps", "address", "postcode"],
       },
       destination: {
-        latitude: { type: Number, required: true, min: -90, max: 90 },
-        longitude: { type: Number, required: true, min: -180, max: 180 },
+        latitude: { type: Number, min: -90, max: 90 },
+        longitude: { type: Number, min: -180, max: 180 },
       },
       location: {
         fullAddress: { type: String, default: "" },

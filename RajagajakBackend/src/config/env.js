@@ -1,5 +1,6 @@
 const path = require("path");
 const dotenv = require("dotenv");
+const shippingRates = require("./shipping-rates.json");
 
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
@@ -76,6 +77,7 @@ const env = {
     "https://nominatim.openstreetmap.org",
   ).replace(/\/$/, ""),
   geocodingUserAgent: getEnv("GEOCODING_USER_AGENT", "RajagajakStore/1.0"),
+  shippingEstimateRates: shippingRates,
   storeLocation: {
     address: getEnv(
       "STORE_ADDRESS",

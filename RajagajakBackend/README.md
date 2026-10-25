@@ -133,8 +133,41 @@ rate limits. For production volume, configure an appropriately licensed,
 reliable geocoding provider. For Google, set `GEOCODING_PROVIDER=google` and
 keep `GOOGLE_MAPS_API_KEY` only in the backend environment. Shipping defaults
 to ₹30 for the first 2 km, then ₹20 per additional 2 km, with a 20 km delivery
-limit; these values are configurable with the `SHIPPING_*` and
-`MAX_DELIVERY_DISTANCE_KM` variables.
+limit for Bhopal-local deliveries; these existing rules and values are
+configurable with the `SHIPPING_*` and `MAX_DELIVERY_DISTANCE_KM` variables.
+Destinations outside that local radius use an estimated, configurable
+zone-and-weight table in
+[`src/config/shipping-rates.json`](./src/config/shipping-rates.json). No
+courier API or courier credentials are used.
+
+The estimate uses the server-validated sum of cart item weights plus the
+configured packaging allowance. It charges the zone base rate for the included
+weight and adds the configured charge for each additional weight slab,
+subject to the zone minimum charge. If Google road distance is configured and
+available, distance thresholds can select local, nearby-state, or
+distant-state zones; otherwise the verified Indian state determines the zone.
+Bhopal-local distance tiers take precedence and are not changed by this rate
+table.
+
+Current defaults in the rate table are: packaging allowance 0.25 kg; included
+weight 0.5 kg; 0.5 kg per additional slab; Madhya Pradesh ₹85 base plus ₹30 per
+additional slab (₹85 minimum); nearby states ₹125 base plus ₹45 per slab
+(₹125 minimum); other states ₹175 base plus ₹65 per slab (₹175 minimum).
+Nearby states currently include Chhattisgarh, Gujarat, Maharashtra, Rajasthan,
+and Uttar Pradesh. Where Google road distance is available, distance
+thresholds are 250 km for local and 1,000 km for nearby-state; farther
+destinations use distant-state rates. Distance thresholds, state lists, slab
+sizes, base charges, per-slab charges, packaging allowance, and minimums can be
+changed in the JSON configuration file without changing calculator logic.
+
+Checkout identifies these non-Bhopal amounts as **estimated shipping
+charges**. Estimates are not live courier quotes and do not guarantee carrier
+serviceability or final carrier charges. Indian pincodes are validated against
+India Post; if region, weight, or rate data is invalid or unavailable, the
+backend returns an error instead of silently quoting zero. The existing
+`POST /api/delivery/calculate` route is reused for checkout quotes. The backend
+independently recalculates shipping when preparing Razorpay orders and
+validating coupons; browser-submitted shipping charges are never trusted.
 
 ## Coupons
 

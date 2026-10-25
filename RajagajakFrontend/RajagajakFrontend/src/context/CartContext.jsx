@@ -56,10 +56,7 @@ const mergeCartItems = (primaryItems, guestItems) => {
     const stockKg = existing.stockKg ?? normalized.stockKg;
     merged.set(normalized.productId, {
       ...existing,
-      quantityKg:
-        stockKg !== null && stockKg !== undefined
-          ? Math.min(quantityKg, getSelectableMaxStockKg(stockKg))
-          : quantityKg,
+      quantityKg,
       stockKg,
     });
   });
@@ -105,6 +102,7 @@ export function CartProvider({ children }) {
     const nextQuantity = existing
       ? existing.quantityKg + normalizeQuantityKg(quantityKg)
       : normalizeQuantityKg(quantityKg);
+    if (hasStock && nextQuantity > maxQuantity) return false;
     const normalized = normalizeItem({
       ...(existing || {}),
       productId,
@@ -114,9 +112,7 @@ export function CartProvider({ children }) {
       mrpPerKg: product.mrp ?? product.mrpPerKg,
       discountPercentage: product.discount,
       gstPercentage: product.gstPercentage,
-      quantityKg: hasStock
-        ? Math.min(nextQuantity, maxQuantity)
-        : nextQuantity,
+      quantityKg: nextQuantity,
       stockKg: hasStock ? stockKg : null,
     });
     persist(
@@ -126,6 +122,7 @@ export function CartProvider({ children }) {
           )
         : [...cartItems, normalized],
     );
+    return true;
   };
 
   const updateQuantityKg = (itemKey, quantityKg) => {
