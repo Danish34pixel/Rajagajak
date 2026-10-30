@@ -58,6 +58,7 @@ export default function AdminDashboard() {
   const [notice, setNotice] = useState("");
   const [product, setProduct] = useState({
     title: "",
+    description: "",
     bulletPoints: [""],
     images: [],
     mrp: "",
@@ -135,6 +136,7 @@ export default function AdminDashboard() {
       setEditing(null);
       setProduct({
         title: "",
+        description: "",
         bulletPoints: [""],
         images: [],
         mrp: "",
@@ -223,12 +225,13 @@ export default function AdminDashboard() {
     setEditing(item._id);
     setProduct({
       ...item,
+      description: item.description || "",
       images: item.images?.length
         ? item.images
         : item.image
           ? [item.image]
           : [],
-      bulletPoints: item.bulletPoints.length ? item.bulletPoints : [""],
+      bulletPoints: item.bulletPoints?.length ? item.bulletPoints : [""],
       gstPercentage: item.gstPercentage ?? "0",
       stock: item.stock ?? "0",
       category: item.category || "",
@@ -433,6 +436,16 @@ function ProductSection({
           value={product.title}
           onChange={(e) => setProduct({ ...product, title: e.target.value })}
         />
+        <label className="product-description-field">
+          Product description
+          <textarea
+            rows={5}
+            value={product.description}
+            onChange={(event) =>
+              setProduct({ ...product, description: event.target.value })
+            }
+          />
+        </label>
         <div className="admin-grid">
           <input
             required
@@ -589,6 +602,7 @@ function ProductSection({
                 setSelectedImages([]);
                 setProduct({
                   title: "",
+                  description: "",
                   bulletPoints: [""],
                   images: [],
                   mrp: "",

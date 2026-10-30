@@ -156,10 +156,10 @@ export default function ProductDetails() {
   const mrpPerKg = Number(
     product?.mrp ?? product?.mrpPerKg ?? pricePerKg,
   );
-  const description =
-    product?.description ||
-    product?.bulletPoints?.join(" ") ||
-    "No product description is available yet.";
+  const description = String(product?.description || "").trim();
+  const bulletPoints = Array.isArray(product?.bulletPoints)
+    ? product.bulletPoints.filter((point) => String(point).trim())
+    : [];
   const maxStock = hasStock
     ? getSelectableMaxStockKg(stock)
     : Infinity;
@@ -216,7 +216,11 @@ export default function ProductDetails() {
       );
   };
 
-  const addSuggestedProduct = (item, event) => {
+  const addSuggestedProduct = (
+    item,
+    event,
+    quantityKg = DEFAULT_QUANTITY_KG,
+  ) => {
     const source = event.currentTarget
       .closest(".product-card")
       ?.querySelector(".product-card-media img");
@@ -225,9 +229,15 @@ export default function ProductDetails() {
       imageSrc: item.images?.[0] || item.image || "",
       alt: item.title,
     });
-    addToCart(item, DEFAULT_QUANTITY_KG);
+    const added = addToCart(item, quantityKg);
+    if (!added) {
+      setActionMessage(
+        `Unable to add that weight of ${item.title}. Choose a smaller quantity.`,
+      );
+      return;
+    }
     setActionMessage(
-      `${formatQuantity(DEFAULT_QUANTITY_KG)} of ${item.title} was added to your bag.`,
+      `${formatQuantity(quantityKg)} of ${item.title} was added to your bag.`,
     );
   };
 
@@ -431,8 +441,29 @@ export default function ProductDetails() {
                   )
                 }
               >
-                <p>{description}</p>
+                <p className="product-detail-description">
+                  {description || "No product description is available yet."}
+                </p>
               </ProductAccordion>
+              {bulletPoints.length > 0 && (
+                <ProductAccordion
+                  title="Product highlights"
+                  open={openSection === "highlights"}
+                  onClick={() =>
+                    setOpenSection(
+                      openSection === "highlights" ? "" : "highlights",
+                    )
+                  }
+                >
+                  <ul className="product-detail-bullets">
+                    {bulletPoints.map((point, index) => (
+                      <li key={`${product._id || product.id}-${index}`}>
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                </ProductAccordion>
+              )}
               <ProductAccordion
                 title="Shipping & returns"
                 open={openSection === "shipping"}

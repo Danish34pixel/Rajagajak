@@ -299,6 +299,48 @@ const calculateEstimatedShipping = (
   };
 };
 
+const calculateOutsideBhopalShipping = (weightKg) => {
+  if (!Number.isFinite(weightKg) || weightKg <= 0)
+    throw new Error("A valid product weight is required to calculate delivery.");
+
+  const slabs = [
+    { label: "First 1 kg", limitKg: 1, ratePerKg: 95 },
+    { label: "Above 1 kg up to 3 kg", limitKg: 3, ratePerKg: 49 },
+    { label: "Above 3 kg up to 5 kg", limitKg: 5, ratePerKg: 25 },
+    { label: "Above 5 kg", limitKg: Infinity, ratePerKg: 19 },
+  ];
+  let remainingWeightKg = weightKg;
+  let previousLimitKg = 0;
+  let shippingCharge = 0;
+  const rateBreakdown = [];
+
+  for (const slab of slabs) {
+    const slabCapacityKg = slab.limitKg - previousLimitKg;
+    const chargedWeightKg = Math.min(remainingWeightKg, slabCapacityKg);
+    if (chargedWeightKg > 0) {
+      const charge = Number((chargedWeightKg * slab.ratePerKg).toFixed(2));
+      shippingCharge += charge;
+      rateBreakdown.push({
+        label: slab.label,
+        weightKg: Number(chargedWeightKg.toFixed(3)),
+        ratePerKg: slab.ratePerKg,
+        charge,
+      });
+      remainingWeightKg = Number(
+        (remainingWeightKg - chargedWeightKg).toFixed(3),
+      );
+    }
+    if (remainingWeightKg <= 0) break;
+    previousLimitKg = slab.limitKg;
+  }
+
+  return {
+    shippingCharge: Number(shippingCharge.toFixed(2)),
+    productWeightKg: Number(weightKg.toFixed(3)),
+    rateBreakdown,
+  };
+};
+
 const addressQuery = (address = {}) =>
   [
     address.houseShop,
@@ -533,7 +575,8 @@ const reverseGeocode = async (coordinates) => {
       result.address.city ||
       result.address.town ||
       result.address.village ||
-      result.address.municipality,
+      result.address.municipality ||
+      result.address.county,
     state: result.address.state,
     pincode: result.address.postcode,
     country: result.address.country,
@@ -652,6 +695,62 @@ const calculateDelivery = async ({
   )
     throw Object.assign(new Error(INVALID_PINCODE_ERROR), { statusCode: 400 });
 
+  const isBhopalDelivery =
+    String(postOffice.District).trim().toLowerCase() === "bhopal";
+  if (!isBhopalDelivery) {
+    if (!Array.isArray(items) || items.length === 0)
+      throw Object.assign(
+        new Error("A cart is required to calculate shipping charges."),
+        { statusCode: 400 },
+      );
+    const productWeightKg = items.reduce(
+      (total, item) => total + Number(item.quantityKg || 0),
+      0,
+    );
+    const outsideBhopal = calculateOutsideBhopalShipping(productWeightKg);
+    const location = destination?.resolvedAddress
+      ? locationParts({
+          ...destination.resolvedAddress,
+          city:
+            destination.resolvedAddress.city ||
+            destination.resolvedAddress.district ||
+            postOffice.District,
+          district: postOffice.District,
+          state: postalState,
+          pincode,
+          country: "India",
+        })
+      : locationParts({
+          building: shippingAddress?.building,
+          houseNumber: shippingAddress?.houseNumber,
+          road: shippingAddress?.road,
+          locality: shippingAddress?.locality,
+          area: shippingAddress?.area,
+          district: postOffice.District,
+          city: shippingAddress?.city || postOffice.District,
+          state: postalState,
+          pincode,
+          country: "India",
+        });
+    return {
+      shippingCharge: outsideBhopal.shippingCharge,
+      shippingMethod: "outside-bhopal",
+      deliveryCategory: "outside-bhopal",
+      estimated: true,
+      productWeightKg: outsideBhopal.productWeightKg,
+      rateBreakdown: outsideBhopal.rateBreakdown,
+      location,
+      fullAddress: location.fullAddress,
+      locationDetected: Boolean(customerLocation),
+      ...(destination && {
+        destination: {
+          latitude: destination.latitude,
+          longitude: destination.longitude,
+        },
+      }),
+    };
+  }
+
   if (!customerLocation) {
     try {
       const geocoded = await geocodeAddress(shippingAddress);
@@ -769,6 +868,7 @@ module.exports = {
   calculateHaversineDistance,
   calculateShippingCharge,
   calculateEstimatedShipping,
+  calculateOutsideBhopalShipping,
   getShippingZone,
   assertWithinDeliveryDistance,
   getIndianPostOffice,

@@ -82,10 +82,11 @@ export default function Dashboard() {
     };
   }, [refreshIndex]);
 
-  const handleAddToCart = (item, event) => {
+  const handleAddToCart = (item, event, quantityKg = DEFAULT_QUANTITY_KG) => {
+    const stock = item.stock ?? item.stockKg;
     if (
-      Number.isFinite(Number(item.stock)) &&
-      getSelectableMaxStockKg(item.stock) < MIN_QUANTITY_KG
+      Number.isFinite(Number(stock)) &&
+      getSelectableMaxStockKg(stock) < MIN_QUANTITY_KG
     ) {
       setCartMessage("This product does not have 300 g available.");
       return;
@@ -98,9 +99,13 @@ export default function Dashboard() {
       imageSrc: item.images?.[0] || item.image || "",
       alt: item.title,
     });
-    addToCart(item, DEFAULT_QUANTITY_KG);
+    const added = addToCart(item, quantityKg);
+    if (!added) {
+      setCartMessage("Unable to add this weight. Please choose a smaller quantity.");
+      return;
+    }
     setCartMessage(
-      `${formatQuantity(DEFAULT_QUANTITY_KG)} of ${item.title} was added to your cart.`,
+      `${formatQuantity(quantityKg)} of ${item.title} was added to your cart.`,
     );
     window.clearTimeout(handleAddToCart.timeout);
     handleAddToCart.timeout = window.setTimeout(() => setCartMessage(""), 2200);

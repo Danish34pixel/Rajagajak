@@ -1686,6 +1686,25 @@ fieldset.checkout-fields {
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
 }
+.delivery-quote > .delivery-rate-breakdown {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+.delivery-rate-breakdown > strong {
+  color: var(--ink);
+}
+.delivery-quote .delivery-rate-breakdown > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.delivery-rate-breakdown > div strong {
+  flex: 0 0 auto;
+  color: var(--ink);
+}
 .delivery-quote-address > div {
   display: flex;
   align-items: center;
@@ -3465,7 +3484,9 @@ fieldset.checkout-fields {
 
 .product-card-body {
   flex: 1;
-  grid-template-rows: auto auto minmax(4.8em, auto) auto 1fr auto;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  grid-template-rows: auto auto minmax(2.8em, auto) auto auto 1fr;
 }
 
 .product-card-body h3 {
@@ -3474,6 +3495,90 @@ fieldset.checkout-fields {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.product-card-description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.product-card-meta .product-card-rating {
+  padding: 4px 0 4px 8px;
+  color: var(--green);
+  background: transparent;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.price-stack strong {
+  font-size: 22px;
+}
+
+.price-stack span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.product-card-quantity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.product-card-quantity select {
+  min-width: 105px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--white);
+  font: inherit;
+}
+
+.product-card-quantity select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.product-card-actions .secondary-action,
+.product-card-actions .product-cart-button {
+  min-height: 40px;
+  justify-content: center;
+}
+
+.product-card-actions .secondary-action {
+  flex: 1;
+}
+
+.product-card-actions .product-cart-button {
+  flex: 1.2;
+}
+
+.product-detail-bullets {
+  min-height: 0;
+  margin: 0;
+}
+
+.product-detail-description {
+  white-space: pre-line;
+}
+
+.product-description-field {
+  display: grid;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .product-detail-copy .product-detail-price {
@@ -3593,6 +3698,12 @@ fieldset.checkout-fields {
 
   .pagination-pages {
     gap: 3px;
+  }
+
+  .dashboard.ecommerce-dashboard .product-grid,
+  .product-suggestions .product-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 14px;
   }
 }
 .order-status-notice {

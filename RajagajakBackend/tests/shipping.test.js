@@ -11,6 +11,7 @@ const {
   calculateHaversineDistance,
   calculateShippingCharge,
   calculateEstimatedShipping,
+  calculateOutsideBhopalShipping,
   DELIVERY_AREA_ERROR,
   calculateDelivery,
 } = require("../src/services/shipping.service");
@@ -64,6 +65,36 @@ test("Bhopal configured increments remain independently adjustable", () => {
   );
 });
 
+test("outside-Bhopal incremental shipping slabs match whole-kilogram examples", () => {
+  const cases = [
+    [1, 95],
+    [2, 144],
+    [3, 193],
+    [4, 218],
+    [5, 243],
+    [6, 262],
+  ];
+  for (const [weightKg, expectedCharge] of cases)
+    assert.equal(
+      calculateOutsideBhopalShipping(weightKg).shippingCharge,
+      expectedCharge,
+    );
+});
+
+test("outside-Bhopal incremental slabs prorate fractional product weights", () => {
+  const cases = [
+    [0.3, 28.5],
+    [1.5, 119.5],
+    [4.5, 230.5],
+    [5.5, 252.5],
+  ];
+  for (const [weightKg, expectedCharge] of cases)
+    assert.equal(
+      calculateOutsideBhopalShipping(weightKg).shippingCharge,
+      expectedCharge,
+    );
+});
+
 test("Haversine distance is zero for identical coordinates", () => {
   const point = { latitude: 23.2556174, longitude: 77.3994281 };
   assert.equal(calculateHaversineDistance(point, point), 0);
@@ -100,6 +131,43 @@ test("existing Bhopal manual address uses the unchanged local rate", async () =>
     assert.equal(result.shippingMethod, "local");
     assert.equal(result.shippingCharge, 30);
     assert.equal(result.estimated, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test("manual outside-Bhopal pincode uses weight slabs instead of Bhopal rates", async () => {
+  const originalFetch = global.fetch;
+  global.fetch = postalFetch(
+    postOfficeResponse("452001", "Madhya Pradesh", "Indore"),
+    [],
+  );
+
+  try {
+    const result = await calculateDelivery({
+      shippingAddress: {
+        address: "10 MG Road",
+        area: "Siyaganj",
+        city: "Indore",
+        state: "Madhya Pradesh",
+        pincode: "452001",
+      },
+      items: [{ quantityKg: 2 }],
+    });
+    assert.equal(result.deliveryCategory, "outside-bhopal");
+    assert.equal(result.shippingCharge, 144);
+    assert.equal(result.productWeightKg, 2);
+    assert.deepEqual(
+      result.rateBreakdown.map(({ weightKg, ratePerKg, charge }) => ({
+        weightKg,
+        ratePerKg,
+        charge,
+      })),
+      [
+        { weightKg: 1, ratePerKg: 95, charge: 95 },
+        { weightKg: 1, ratePerKg: 49, charge: 49 },
+      ],
+    );
   } finally {
     global.fetch = originalFetch;
   }
@@ -145,6 +213,46 @@ test("GPS Bhopal quote reverse-geocodes and retains existing local pricing", asy
   }
 });
 
+test("GPS outside Bhopal accepts reverse-geocoded district as the city", async () => {
+  const originalFetch = global.fetch;
+  const customerLocation = { latitude: 22.7196, longitude: 75.8577 };
+  global.fetch = async (url) => {
+    const requestedUrl = new URL(url);
+    if (requestedUrl.hostname === "api.postalpincode.in")
+      return {
+        ok: true,
+        json: async () =>
+          postOfficeResponse("452003", "Madhya Pradesh", "Indore"),
+      };
+    return {
+      ok: true,
+      json: async () => ({
+        address: {
+          road: "M G Road",
+          county: "Indore",
+          state: "Madhya Pradesh",
+          postcode: "452003",
+          country: "India",
+        },
+      }),
+    };
+  };
+
+  try {
+    const result = await calculateDelivery({
+      customerLocation,
+      items: [{ quantityKg: 1 }],
+    });
+    assert.equal(result.location.city, "Indore");
+    assert.equal(result.location.district, "Indore");
+    assert.equal(result.location.pincode, "452003");
+    assert.equal(result.locationDetected, true);
+    assert.equal(result.shippingCharge, 95);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test("invalid pincodes are rejected before address geocoding", async () => {
   const originalFetch = global.fetch;
   global.fetch = async () => ({
@@ -169,7 +277,7 @@ test("invalid pincodes are rejected before address geocoding", async () => {
   }
 });
 
-test("Indore destination uses the configured local-state estimate", async () => {
+test("manual Indore pincode uses outside-Bhopal weight pricing", async () => {
   const originalFetch = global.fetch;
   global.fetch = postalFetch(
     postOfficeResponse("452010", "Madhya Pradesh", "Indore"),
@@ -195,18 +303,18 @@ test("Indore destination uses the configured local-state estimate", async () => 
       },
       items: [{ quantityKg: 1 }],
     });
-    assert.equal(result.shippingMethod, "estimated");
-    assert.equal(result.shippingZone, "local");
+    assert.equal(result.shippingMethod, "outside-bhopal");
+    assert.equal(result.deliveryCategory, "outside-bhopal");
     assert.equal(result.estimated, true);
-    assert.equal(result.shippingCharge, 145);
-    assert.equal(result.shipmentWeightKg, 1.25);
+    assert.equal(result.shippingCharge, 95);
+    assert.equal(result.productWeightKg, 1);
     assert.equal(result.location.pincode, "452010");
   } finally {
     global.fetch = originalFetch;
   }
 });
 
-test("other states receive a clearly identified nearby or distant estimate", async () => {
+test("manual PIN in another state uses outside-Bhopal weight pricing", async () => {
   const originalFetch = global.fetch;
   global.fetch = postalFetch(
     postOfficeResponse("110001", "Delhi", "New Delhi"),
@@ -233,10 +341,10 @@ test("other states receive a clearly identified nearby or distant estimate", asy
       },
       items: [{ quantityKg: 1 }],
     });
-    assert.equal(result.shippingMethod, "estimated");
-    assert.equal(result.shippingZone, "distant-state");
+    assert.equal(result.shippingMethod, "outside-bhopal");
+    assert.equal(result.deliveryCategory, "outside-bhopal");
     assert.equal(result.estimated, true);
-    assert.equal(result.shippingCharge, 305);
+    assert.equal(result.shippingCharge, 95);
   } finally {
     global.fetch = originalFetch;
   }

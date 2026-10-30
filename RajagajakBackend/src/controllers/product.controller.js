@@ -43,6 +43,9 @@ const normalizeProduct = (body) => {
     return null;
   return {
     title: body.title.trim(),
+    ...(Object.prototype.hasOwnProperty.call(body, "description")
+      ? { description: String(body.description || "").trim() }
+      : {}),
     bulletPoints,
     images,
     mrp,
@@ -55,7 +58,7 @@ const normalizeProduct = (body) => {
 };
 
 const publicProductFields =
-  "title bulletPoints images image mrp discount finalPrice gstPercentage stock category createdAt updatedAt";
+  "title description bulletPoints images image mrp discount finalPrice gstPercentage stock category createdAt updatedAt";
 
 const listPublicProducts = asyncHandler(async (req, res) =>
   successResponse(
@@ -121,4 +124,5 @@ module.exports = {
   createProduct,
   updateProduct,
   deleteProduct,
+  normalizeProduct,
 };

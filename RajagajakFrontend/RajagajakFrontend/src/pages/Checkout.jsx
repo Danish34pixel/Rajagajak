@@ -7,6 +7,10 @@ import { useCart } from "../context/useCart.js";
 import { useAuth } from "../context/useAuth.js";
 import * as api from "../services/api.js";
 import { calculateCheckoutGrandTotal } from "../utils/checkoutPricing.js";
+import {
+  getCurrentLocation,
+  getLocationErrorMessage,
+} from "../utils/location.js";
 import { formatQuantity } from "../utils/quantity.js";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
@@ -40,20 +44,6 @@ const deliveryAddressPayload = (address) => ({
   locationDetected: Boolean(address.locationDetected),
   locationSource: address.locationDetected ? "gps" : "manual",
 });
-
-const getCurrentLocation = () =>
-  new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Location is not available in this browser."));
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) =>
-        resolve({ latitude: coords.latitude, longitude: coords.longitude }),
-      reject,
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
-    );
-  });
 
 const loadRazorpayCheckoutScript = async () => {
   if (window.Razorpay) return true;
@@ -157,7 +147,6 @@ export default function Checkout() {
       setDeliveryQuoteState(value ? { cartKey, data: value } : null),
     [cartKey],
   );
-  const lastShippingCartKey = useRef(cartKey);
   const [quoteResult, setQuoteResult] = useState(null);
   const [quoteFailure, setQuoteFailure] = useState(null);
   const quote = quoteResult?.key === cartKey ? quoteResult.data : null;
@@ -294,51 +283,60 @@ export default function Checkout() {
   }, [deliveryMode, customerLocation, cartItems, cartKey, setDeliveryQuote]);
 
   useEffect(() => {
-    if (lastShippingCartKey.current === cartKey) return;
-    lastShippingCartKey.current = cartKey;
     if (
       !cartItems.length ||
       deliveryMode !== "address" ||
-      manualAddressOpen ||
-      !address.fullAddress ||
-      !address.pincode
-    ) {
-      return;
-    }
+      !address.houseShop.trim() ||
+      !address.city.trim() ||
+      !address.state.trim() ||
+      !/^\d{6}$/.test(address.pincode.trim())
+    )
+      return undefined;
 
     let active = true;
-    api
-      .quoteShipping({
-        shippingAddress: deliveryAddressPayload(address),
-        items: cartItems.map(({ productId, quantityKg }) => ({
-          productId,
-          quantityKg,
-        })),
-      })
-      .then((response) => {
-        if (active) setDeliveryQuote(response.data.shipping);
-      })
-      .catch((requestError) => {
-        if (active) {
-          setDeliveryQuote(null);
-          setDeliveryError(
-            requestError.message ||
-              "Unable to recalculate delivery for the updated cart.",
-          );
-        }
-      })
-      .finally(() => {
-        if (active) setDeliveryCalculating(false);
-      });
+    const timer = window.setTimeout(() => {
+      setDeliveryCalculating(true);
+      setDeliveryQuote(null);
+      setDeliveryError("");
+      api
+        .quoteShipping({
+          shippingAddress: deliveryAddressPayload(address),
+          items: cartItems.map(({ productId, quantityKg }) => ({
+            productId,
+            quantityKg,
+          })),
+        })
+        .then((response) => {
+          if (active) setDeliveryQuote(response.data.shipping);
+        })
+        .catch((requestError) => {
+          if (active) {
+            setDeliveryQuote(null);
+            setDeliveryError(
+              requestError.message ||
+                "Unable to recalculate delivery for the updated address.",
+            );
+          }
+        })
+        .finally(() => {
+          if (active) setDeliveryCalculating(false);
+        });
+    }, 500);
+
     return () => {
       active = false;
+      window.clearTimeout(timer);
     };
   }, [
-    cartKey,
     cartItems,
+    cartKey,
     deliveryMode,
-    manualAddressOpen,
     address,
+    address.houseShop,
+    address.area,
+    address.city,
+    address.state,
+    address.pincode,
     setDeliveryQuote,
   ]);
 
@@ -396,7 +394,7 @@ export default function Checkout() {
     setManualAddressOpen(true);
   };
 
-  const calculateManualDelivery = async () => {
+  const calculateManualDelivery = () => {
     setDeliveryError("");
     if (
       !address.name.trim() ||
@@ -416,49 +414,8 @@ export default function Checkout() {
       setDeliveryError("Please enter a valid 6-digit pincode.");
       return;
     }
-
-    setDeliveryCalculating(true);
-    setDeliveryQuote(null);
-    setDeliveryMode("address");
-    setCustomerLocation(null);
-    try {
-      const response = await api.quoteShipping({
-        shippingAddress: {
-          address: address.houseShop,
-          area: address.area,
-          city: address.city,
-          state: address.state,
-          pincode: address.pincode,
-        },
-        items: cartItems.map(({ productId, quantityKg }) => ({
-          productId,
-          quantityKg,
-        })),
-      });
-      setDeliveryQuote(response.data.shipping);
-      setAddress((current) => ({
-        ...current,
-        fullAddress: [
-          current.houseShop,
-          current.area,
-          current.city,
-          `${current.state} - ${current.pincode}`,
-        ]
-          .filter(Boolean)
-          .join(", "),
-        locationDetected: false,
-      }));
-      setManualAddressOpen(false);
-    } catch (requestError) {
-      setDeliveryError(
-        requestError.message === "We couldn't find that delivery address."
-          ? "Couldn't find this address. Please check your address and try again."
-          : requestError.message ||
-              "We couldn't calculate delivery charges. Please try again or enter your delivery address.",
-      );
-    } finally {
-      setDeliveryCalculating(false);
-    }
+    if (!deliveryQuote) setDeliveryCalculating(true);
+    setManualAddressOpen(false);
   };
 
   const useDeviceLocation = async () => {
@@ -479,11 +436,7 @@ export default function Checkout() {
       setManualAddressOpen(true);
       setGettingLocation(false);
       setDeliveryCalculating(false);
-      setDeliveryError(
-        locationError.code === 1
-          ? "Location permission was denied. Please enter your delivery address manually."
-          : "Unable to detect your location. Please enter your delivery address manually.",
-      );
+      setDeliveryError(getLocationErrorMessage(locationError));
     }
   };
 
@@ -781,29 +734,68 @@ export default function Checkout() {
                     </span>
                   </div>
                 )}
+                {deliveryQuote.deliveryCategory === "outside-bhopal" ? (
+                  <>
+                    <div>
+                      <span>Delivery location</span>
+                      <strong>
+                        {[
+                          deliveryQuote.location?.city ||
+                            deliveryQuote.location?.district,
+                          deliveryQuote.location?.state,
+                          deliveryQuote.location?.pincode,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Product weight</span>
+                      <strong>
+                        {Number(deliveryQuote.productWeightKg).toFixed(3)} kg
+                      </strong>
+                    </div>
+                    <div className="delivery-rate-breakdown">
+                      <strong>Applicable delivery rates</strong>
+                      {deliveryQuote.rateBreakdown?.map((slab) => (
+                        <div key={slab.label}>
+                          <span>
+                            {slab.label} · {slab.weightKg} kg ×{" "}
+                            {money(slab.ratePerKg)}/kg
+                          </span>
+                          <strong>{money(slab.charge)}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <span>
+                      {deliveryQuote.estimated
+                        ? "Estimated shipping zone"
+                        : "Delivery Distance"}
+                    </span>
+                    <strong>
+                      {deliveryQuote.estimated
+                        ? deliveryQuote.shippingZone
+                            ?.replace("-", " ")
+                            .replace(/\b\w/g, (letter) => letter.toUpperCase())
+                        : `${Number(deliveryQuote.distanceKm).toFixed(1)} KM`}
+                    </strong>
+                  </div>
+                )}
                 <div>
                   <span>
-                    {deliveryQuote.estimated
-                      ? "Estimated shipping zone"
-                      : "Delivery Distance"}
-                  </span>
-                  <strong>
-                    {deliveryQuote.estimated
-                      ? deliveryQuote.shippingZone
-                          ?.replace("-", " ")
-                          .replace(/\b\w/g, (letter) => letter.toUpperCase())
-                      : `${Number(deliveryQuote.distanceKm).toFixed(1)} KM`}
-                  </strong>
-                </div>
-                <div>
-                  <span>
-                    {deliveryQuote.estimated
+                    {deliveryQuote.deliveryCategory === "outside-bhopal"
+                      ? "Total delivery charge"
+                      : deliveryQuote.estimated
                       ? "Estimated shipping charges"
                       : "Shipping Charges"}
                   </span>
                   <strong>{money(deliveryQuote.shippingCharge)}</strong>
                 </div>
-                {deliveryQuote.estimated && (
+                {deliveryQuote.estimated &&
+                  deliveryQuote.deliveryCategory !== "outside-bhopal" && (
                   <>
                     <div>
                       <span>Parcel weight (incl. packaging)</span>
