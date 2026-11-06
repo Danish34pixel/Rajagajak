@@ -58,6 +58,7 @@ SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
 EMAIL_FROM=Raja Gajak <no-reply@rajagajak.in>
+ADMIN_NOTIFICATION_EMAIL=rajagajak27@gmail.com
 ```
 
 Set `FRONTEND_URL` to the exact public frontend origin/base path that serves

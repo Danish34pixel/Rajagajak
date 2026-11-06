@@ -3,6 +3,9 @@ const dns = require("dns");
 const env = require("./config/env");
 const app = require("./app");
 const { connectDB, disconnectDB } = require("./config/db");
+const {
+  verifyAdminOrderEmailTransport,
+} = require("./services/admin-order-email.service");
 
 let server;
 
@@ -28,6 +31,7 @@ const startServer = async () => {
 
   server.listen(env.port, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${env.port}`);
+    void verifyAdminOrderEmailTransport();
   });
 };
 

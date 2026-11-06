@@ -11,6 +11,10 @@ const { calculateItems, buildPricing } = require("./order.controller");
 const { calculateDelivery } = require("../services/shipping.service");
 const { evaluateCoupon } = require("../services/coupon.service");
 const {
+  saveOrder,
+  notifyAdminOrder,
+} = require("../services/order-placement.service");
+const {
   verifyRazorpaySignature,
   isCapturedRazorpayPayment,
   getRazorpayConfigurationIssue,
@@ -143,7 +147,9 @@ const buildPaymentOrder = async ({
     );
   }
   if (!shippingAddress || typeof shippingAddress !== "object") {
-    throw paymentInputError("Please provide a complete valid delivery address.");
+    throw paymentInputError(
+      "Please provide a complete valid delivery address.",
+    );
   }
 
   const billingAddress = normalizeAddress(shippingAddress);
@@ -282,14 +288,18 @@ const createRazorpayOrderHandler = ({
 }) =>
   asyncHandler(async (req, res) => {
     const body = req.body || {};
-    if (String(body.paymentMethod || "").trim().toLowerCase() !== "razorpay") {
-    logger.warn(
-      "[payment] Order request rejected",
-      JSON.stringify({ stage: "request_validation", statusCode: 400 }),
-    );
-    return errorResponse(
-      res,
-      "Razorpay is the only supported payment method.",
+    if (
+      String(body.paymentMethod || "")
+        .trim()
+        .toLowerCase() !== "razorpay"
+    ) {
+      logger.warn(
+        "[payment] Order request rejected",
+        JSON.stringify({ stage: "request_validation", statusCode: 400 }),
+      );
+      return errorResponse(
+        res,
+        "Razorpay is the only supported payment method.",
         400,
       );
     }
@@ -357,7 +367,7 @@ const createRazorpayOrderHandler = ({
           ? "We couldn't verify the delivery location. Please try again shortly."
           : statusCode === 503
             ? error.message
-          : "We couldn't prepare this payment. Please try again or contact support.",
+            : "We couldn't prepare this payment. Please try again or contact support.",
         statusCode,
       );
     }
@@ -457,7 +467,11 @@ const createRazorpayOrder = createRazorpayOrderHandler({
 });
 
 const verifyPayment = asyncHandler(async (req, res) => {
-  if (String(req.body.paymentMethod || "").trim().toLowerCase() !== "razorpay") {
+  if (
+    String(req.body.paymentMethod || "")
+      .trim()
+      .toLowerCase() !== "razorpay"
+  ) {
     return errorResponse(
       res,
       "Razorpay is the only supported payment method.",
@@ -506,7 +520,11 @@ const verifyPayment = asyncHandler(async (req, res) => {
     gatewayOrder.notes?.clientRequestId !== clientRequestId ||
     gatewayOrder.notes?.userId !== String(req.user.sub)
   ) {
-    return errorResponse(res, "Payment does not match this order request.", 400);
+    return errorResponse(
+      res,
+      "Payment does not match this order request.",
+      400,
+    );
   }
 
   const existingOrder = await Order.findOne({
@@ -533,7 +551,12 @@ const verifyPayment = asyncHandler(async (req, res) => {
     ) {
       return errorResponse(res, "Payment verification failed.", 400);
     }
-    return successResponse(res, existingOrder, "Payment verified and order already exists", 200);
+    return successResponse(
+      res,
+      existingOrder,
+      "Payment verified and order already exists",
+      200,
+    );
   }
 
   try {
@@ -601,7 +624,8 @@ const verifyPayment = asyncHandler(async (req, res) => {
       await session.withTransaction(async () => {
         if (orderPayload.appliedCoupon) {
           const couponId = orderPayload.appliedCoupon.coupon.id;
-          const currentCoupon = await Coupon.findById(couponId).session(session);
+          const currentCoupon =
+            await Coupon.findById(couponId).session(session);
           if (!currentCoupon) throw new Error("Coupon not found.");
           const [userOrderCount, redemption] = await Promise.all([
             Order.countDocuments({
@@ -642,7 +666,10 @@ const verifyPayment = asyncHandler(async (req, res) => {
           );
           if (!reservedCoupon) throw new Error("Coupon usage limit reached.");
 
-          const redemptionFilter = { couponId: currentCoupon._id, userId: req.user.sub };
+          const redemptionFilter = {
+            couponId: currentCoupon._id,
+            userId: req.user.sub,
+          };
           if (currentCoupon.perUserLimit != null)
             redemptionFilter.count = { $lt: currentCoupon.perUserLimit };
 
@@ -691,14 +718,21 @@ const verifyPayment = asyncHandler(async (req, res) => {
           }
         }
 
-        savedOrder = await Order.create([orderDocument], { session });
-        savedOrder = savedOrder[0];
+        savedOrder = await saveOrder(orderDocument, { session });
       });
     } finally {
       await session.endSession();
     }
 
-    return successResponse(res, savedOrder, "Payment verified and order placed", 201);
+    // Keep SMTP delivery outside the payment response path.
+    void notifyAdminOrder(savedOrder);
+
+    return successResponse(
+      res,
+      savedOrder,
+      "Payment verified and order placed",
+      201,
+    );
   } catch (error) {
     return errorResponse(
       res,
