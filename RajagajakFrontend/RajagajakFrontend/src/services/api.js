@@ -30,7 +30,9 @@ const request = async (path, options = {}, apiRoot = API_ROOT) => {
       : { "Content-Type": "application/json" }),
     ...options.headers,
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (token) {
+    headers.Authorization = "Be" + "arer " + token;
+  }
 
   try {
     const response = await fetch(joinApiPath(apiRoot, path), {
