@@ -235,7 +235,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
         cancellationReason: String(req.body.reason || "").trim(),
       },
     },
-    { new: true },
+    { returnDocument: "after" },
   );
   if (!cancelled)
     return errorResponse(res, "This order has already changed status.", 409);
@@ -312,7 +312,7 @@ const cancelAdminOrder = asyncHandler(async (req, res) => {
         cancellationReason: String(req.body.reason || "").trim(),
       },
     },
-    { new: true },
+    { returnDocument: "after" },
   );
   if (!cancelled)
     return errorResponse(res, "This order has already changed status.", 409);

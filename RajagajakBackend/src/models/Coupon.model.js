@@ -93,5 +93,4 @@ const couponSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-couponSchema.index({ code: 1 }, { unique: true });
 module.exports = mongoose.model("Coupon", couponSchema);

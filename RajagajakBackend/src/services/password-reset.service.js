@@ -59,7 +59,7 @@ const resetPassword = async (token, password) => {
       $unset: { resetPasswordTokenHash: 1, resetPasswordExpires: 1 },
       $inc: { tokenVersion: 1 },
     },
-    { new: true, runValidators: true },
+    { returnDocument: "after", runValidators: true },
   );
   return Boolean(user);
 };

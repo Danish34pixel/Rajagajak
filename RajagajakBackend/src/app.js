@@ -11,6 +11,8 @@ const couponRoutes = require("./routes/coupon.routes");
 
 const app = express();
 
+// Nginx reverse proxy runs on the same host — loopback only, prevents IP spoofing.
+app.set("trust proxy", "loopback");
 app.use(helmet());
 app.use(
   cors({
@@ -45,7 +47,9 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/v1", apiRoutes);
-app.use("/api/test", require("./routes/test-order.routes"));
+if (env.nodeEnv !== "production") {
+  app.use("/api/test", require("./routes/test-order.routes"));
+}
 app.use("/api/payment", require("./routes/payment.routes"));
 app.use("/api/coupons", couponRoutes);
 app.use("/api/delivery", deliveryRoutes);
