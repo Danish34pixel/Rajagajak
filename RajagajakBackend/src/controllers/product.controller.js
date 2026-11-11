@@ -104,7 +104,7 @@ const updateProduct = asyncHandler(async (req, res) => {
   const data = normalizeProduct(req.body);
   if (!data) return errorResponse(res, "Invalid product data", 400);
   const product = await Product.findByIdAndUpdate(req.params.id, data, {
-    new: true,
+    returnDocument: "after",
     runValidators: true,
   });
   if (!product) return errorResponse(res, "Product not found", 404);

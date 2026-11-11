@@ -42,7 +42,7 @@ export default function OrderStatusNotification() {
     };
 
     pollNotifications();
-    const interval = window.setInterval(pollNotifications, 30000);
+    const interval = window.setInterval(pollNotifications, 120000);
     return () => {
       active = false;
       window.clearInterval(interval);
