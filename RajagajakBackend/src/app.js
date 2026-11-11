@@ -26,7 +26,19 @@ app.use(
 );
 app.use(express.json({ limit: "25kb" }));
 app.use(express.urlencoded({ extended: true, limit: "25kb" }));
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 100 }));
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 500,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      success: false,
+      message: "Too many requests. Please try again later.",
+      error: null,
+    },
+  }),
+);
 
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Rajagajak API" });
