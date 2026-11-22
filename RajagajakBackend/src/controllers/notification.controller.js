@@ -22,7 +22,7 @@ const markNotificationRead = asyncHandler(async (req, res) => {
   const notification = await OrderStatusNotification.findOneAndUpdate(
     { _id: req.params.id, userId: req.user.sub, readAt: null },
     { $set: { readAt: new Date() } },
-    { new: true },
+    { returnDocument: "after" },
   );
   return notification
     ? successResponse(res, notification)

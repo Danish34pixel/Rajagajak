@@ -313,7 +313,7 @@ const updateCoupon = asyncHandler(async (req, res) => {
     );
   try {
     const coupon = await Coupon.findByIdAndUpdate(req.params.id, data, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
     if (!coupon) return errorResponse(res, "Coupon not found", 404);

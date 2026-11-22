@@ -45,7 +45,19 @@ const passwordChangeLimiter = rateLimit({
   },
 });
 
-router.post("/signup", signup);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many login attempts. Please try again later.",
+    error: null,
+  },
+});
+
+router.post("/signup", authLimiter, signup);
 router.post("/login", loginLimiter, login);
 router.post("/forgot-password", passwordResetLimiter, forgotPassword);
 router.post("/reset-password", passwordChangeLimiter, resetPassword);

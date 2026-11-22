@@ -662,7 +662,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
           const reservedCoupon = await Coupon.findOneAndUpdate(
             usageFilter,
             { $inc: { usedCount: 1 } },
-            { new: true, session },
+            { returnDocument: "after", session },
           );
           if (!reservedCoupon) throw new Error("Coupon usage limit reached.");
 
@@ -684,7 +684,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
               $inc: { count: 1 },
               $set: { lastOrderId: new mongoose.Types.ObjectId() },
             },
-            { new: true, session },
+            { returnDocument: "after", session },
           );
           if (!updatedRedemption) {
             throw new Error(
@@ -709,7 +709,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
               stock: { $gte: item.snapshot.quantityKg },
             },
             { $inc: { stock: -item.snapshot.quantityKg } },
-            { new: true, session },
+            { returnDocument: "after", session },
           );
           if (!updated) {
             throw new Error(
