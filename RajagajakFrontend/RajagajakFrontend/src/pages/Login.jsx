@@ -18,7 +18,12 @@ export default function Login() {
   const { user, signIn } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [loginMethod, setLoginMethod] = useState("email");
+  const [form, setForm] = useState({
+    email: "",
+    mobile: "",
+    password: "",
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -49,14 +54,35 @@ export default function Login() {
   const submit = async (event) => {
     event.preventDefault();
     setError("");
-    if (!form.email || !form.password) {
-      setError("Enter your email and password to continue.");
+    const identifier = loginMethod === "email" ? form.email.trim() : form.mobile;
+    if (!identifier || !form.password) {
+      setError(
+        loginMethod === "email"
+          ? "Enter your email and password to continue."
+          : "Enter your mobile number and password to continue.",
+      );
+      triggerShake();
+      return;
+    }
+    if (
+      loginMethod === "email" &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier)
+    ) {
+      setError("Enter a valid email address.");
+      triggerShake();
+      return;
+    }
+    if (loginMethod === "mobile" && !/^[6-9]\d{9}$/.test(identifier)) {
+      setError("Enter a valid 10-digit Indian mobile number.");
       triggerShake();
       return;
     }
     setSubmitting(true);
     try {
-      const loggedInUser = await signIn(form);
+      const loggedInUser = await signIn({
+        [loginMethod]: identifier,
+        password: form.password,
+      });
       const adminUser = isAdmin(loggedInUser);
       const pendingPath = adminUser ? null : getPostLoginPath();
       if (adminUser || pendingPath) {
@@ -90,18 +116,68 @@ export default function Login() {
           </div>
         )}
 
-        <label className="field field--stagger" style={{ "--delay": "0ms" }}>
-          Email address
-          <div className="input-wrap">
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="you@example.com"
-              autoComplete="email"
-            />
-          </div>
-        </label>
+        <div
+          className="auth-method-selector field--stagger"
+          role="group"
+          aria-label="Login method"
+        >
+          <button
+            type="button"
+            className={loginMethod === "email" ? "is-selected" : ""}
+            aria-pressed={loginMethod === "email"}
+            onClick={() => setLoginMethod("email")}
+          >
+            Email
+          </button>
+          <button
+            type="button"
+            className={loginMethod === "mobile" ? "is-selected" : ""}
+            aria-pressed={loginMethod === "mobile"}
+            onClick={() => setLoginMethod("mobile")}
+          >
+            Mobile Number
+          </button>
+        </div>
+
+        {loginMethod === "email" ? (
+          <label className="field field--stagger" style={{ "--delay": "0ms" }}>
+            Email address
+            <div className="input-wrap">
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
+            </div>
+          </label>
+        ) : (
+          <label className="field field--stagger" style={{ "--delay": "0ms" }}>
+            Mobile number
+            <div className="input-wrap auth-mobile-input-wrap">
+              <span className="auth-country-code" aria-hidden="true">
+                +91
+              </span>
+              <input
+                type="tel"
+                value={form.mobile}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    mobile: e.target.value.replace(/\D/g, "").slice(0, 10),
+                  })
+                }
+                placeholder="10-digit mobile number"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                maxLength={10}
+                required
+              />
+            </div>
+          </label>
+        )}
 
         <div className="field field--stagger" style={{ "--delay": "70ms" }}>
           <div className="field-heading">
@@ -119,6 +195,7 @@ export default function Login() {
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="Enter your password"
               autoComplete="current-password"
+              required
             />
             <button
               className="field-action"

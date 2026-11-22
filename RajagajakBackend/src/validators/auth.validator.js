@@ -1,6 +1,11 @@
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const mobilePattern = /^[6-9]\d{9}$/;
 const pinCodePattern = /^\d{6}$/;
+
+const normalizeIndianMobile = (mobile) => {
+  if (typeof mobile !== "string") return null;
+  const match = /^(?:\+91)?([6-9]\d{9})$/.exec(mobile.trim());
+  return match ? match[1] : null;
+};
 
 const isValidAddress = (address, { requireLocation = false } = {}) => {
   if (typeof address === "string") return Boolean(address.trim());
@@ -20,18 +25,32 @@ const validateSignup = ({
   name,
   mobile,
   email,
+  registrationMethod = "email",
   address,
   pinCode,
   password,
 }) => {
   const errors = [];
 
+  if (!["email", "mobile"].includes(registrationMethod)) {
+    errors.push("Choose email or mobile number for registration.");
+  }
   if (!name?.trim()) errors.push("Name is required.");
-  if (!mobile || !mobilePattern.test(String(mobile).trim())) {
+  if (
+    (registrationMethod === "mobile" && !mobile) ||
+    (mobile && !normalizeIndianMobile(String(mobile)))
+  ) {
     errors.push("Mobile must be a valid Indian 10-digit number.");
   }
-  if (!email || !emailPattern.test(String(email).trim())) {
-    errors.push("A valid email is required.");
+  if (
+    (registrationMethod === "email" && !email) ||
+    (email && !emailPattern.test(String(email).trim()))
+  ) {
+    errors.push(
+      registrationMethod === "mobile"
+        ? "Enter a valid email address or leave it blank."
+        : "A valid email is required.",
+    );
   }
   if (!isValidAddress(address, { requireLocation: true })) {
     errors.push("Address line 1, city, and state are required.");
@@ -46,14 +65,20 @@ const validateSignup = ({
   return errors;
 };
 
-const validateProfileUpdate = ({ name, mobile, email, address, pinCode }) => {
+const validateProfileUpdate = ({
+  name,
+  mobile,
+  email,
+  address,
+  pinCode,
+} = {}) => {
   const errors = [];
 
   if (!name?.trim()) errors.push("Name is required.");
-  if (!mobile || !mobilePattern.test(String(mobile).trim())) {
+  if (mobile && !normalizeIndianMobile(String(mobile))) {
     errors.push("Mobile must be a valid Indian 10-digit number.");
   }
-  if (!email || !emailPattern.test(String(email).trim())) {
+  if (email && !emailPattern.test(String(email).trim())) {
     errors.push("A valid email is required.");
   }
   if (!isValidAddress(address)) errors.push("Address is required.");
@@ -93,4 +118,5 @@ module.exports = {
   validateProfileUpdate,
   validateResetPassword,
   validateSignup,
+  normalizeIndianMobile,
 };

@@ -9,14 +9,11 @@ const userSchema = new mongoose.Schema(
     },
     mobile: {
       type: String,
-      required: true,
       match: /^[6-9]\d{9}$/,
       trim: true,
     },
     email: {
       type: String,
-      required: true,
-      unique: true,
       lowercase: true,
       trim: true,
     },
@@ -68,12 +65,35 @@ const userSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+userSchema.pre("validate", function requireLoginIdentifier() {
+  if (!this.email && !this.mobile) {
+    this.invalidate("email", "An email address or mobile number is required.");
+  }
+});
+
+userSchema.index(
+  { email: 1 },
+  {
+    name: "email_unique_present",
+    unique: true,
+    partialFilterExpression: { email: { $type: "string" } },
+  },
+);
+userSchema.index(
+  { mobile: 1 },
+  {
+    name: "mobile_unique_present",
+    unique: true,
+    partialFilterExpression: { mobile: { $type: "string" } },
+  },
+);
+
 userSchema.methods.toSafeObject = function toSafeObject() {
   return {
     id: this._id.toString(),
     name: this.name,
-    mobile: this.mobile,
-    email: this.email,
+    mobile: this.mobile || null,
+    email: this.email || null,
     address:
       this.address && typeof this.address === "object"
         ? { ...this.address }

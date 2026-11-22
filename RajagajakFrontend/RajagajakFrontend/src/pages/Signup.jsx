@@ -27,6 +27,7 @@ export default function Signup() {
   const location = useLocation();
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
+  const [registrationMethod, setRegistrationMethod] = useState("email");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -118,9 +119,19 @@ export default function Signup() {
 
   const validate = () => {
     if (!form.name.trim()) return "Please enter your full name.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+    if (
+      registrationMethod === "email" &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
+    )
       return "Enter a valid email address.";
-    if (!/^[6-9]\d{9}$/.test(form.mobile))
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      return "Enter a valid email address.";
+    if (
+      registrationMethod === "mobile" &&
+      !/^[6-9]\d{9}$/.test(form.mobile)
+    )
+      return "Enter a valid 10-digit mobile number.";
+    if (form.mobile && !/^[6-9]\d{9}$/.test(form.mobile))
       return "Enter a valid 10-digit mobile number.";
     if (!/^\d{6}$/.test(form.pinCode)) return "PIN code must contain 6 digits.";
     if (pincodeStatus === "loading")
@@ -144,9 +155,10 @@ export default function Signup() {
     setSubmitting(true);
     try {
       await signUp({
+        registrationMethod,
         name: form.name,
-        mobile: form.mobile,
-        email: form.email,
+        mobile: form.mobile || undefined,
+        email: form.email.trim() || undefined,
         address: form.address,
         pinCode: form.pinCode,
         password: form.password,
@@ -159,7 +171,12 @@ export default function Signup() {
         return;
       }
       try {
-        await signIn({ email: form.email, password: form.password });
+        await signIn({
+          [registrationMethod]: registrationMethod === "email"
+            ? form.email.trim()
+            : form.mobile,
+          password: form.password,
+        });
         navigate("/checkout", { replace: true });
       } catch {
         navigate("/login", {
@@ -210,7 +227,7 @@ export default function Signup() {
           <span className="eyebrow">Create account</span>
           <h2>Bring home the joy of every bite</h2>
           <p className="section-subtitle">
-            All fields are required for a complete profile.
+            Add your contact details and choose your sign-in method.
           </p>
           <form className="auth-form signup-form" onSubmit={submit} noValidate>
             {error && (
@@ -218,6 +235,28 @@ export default function Signup() {
                 {error}
               </div>
             )}
+            <div
+              className="auth-method-selector"
+              role="group"
+              aria-label="Registration method"
+            >
+              <button
+                type="button"
+                className={registrationMethod === "email" ? "is-selected" : ""}
+                aria-pressed={registrationMethod === "email"}
+                onClick={() => setRegistrationMethod("email")}
+              >
+                Email
+              </button>
+              <button
+                type="button"
+                className={registrationMethod === "mobile" ? "is-selected" : ""}
+                aria-pressed={registrationMethod === "mobile"}
+                onClick={() => setRegistrationMethod("mobile")}
+              >
+                Mobile Number
+              </button>
+            </div>
             <div className="form-grid">
               <label
                 className="field field--stagger"
@@ -236,13 +275,25 @@ export default function Signup() {
                 style={{ "--delay": "50ms" }}
               >
                 Mobile number
-                <input
-                  value={form.mobile}
-                  onChange={update("mobile")}
-                  placeholder="10-digit number"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                />
+                <div className="input-wrap auth-mobile-input-wrap">
+                  <span className="auth-country-code" aria-hidden="true">
+                    +91
+                  </span>
+                  <input
+                    value={form.mobile}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        mobile: event.target.value.replace(/\D/g, "").slice(0, 10),
+                      }))
+                    }
+                    placeholder="10-digit number"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    maxLength={10}
+                    required={registrationMethod === "mobile"}
+                  />
+                </div>
               </label>
               <label
                 className="field field--stagger"
@@ -255,6 +306,7 @@ export default function Signup() {
                   onChange={update("email")}
                   placeholder="you@example.com"
                   autoComplete="email"
+                  required={registrationMethod === "email"}
                 />
               </label>
             </div>

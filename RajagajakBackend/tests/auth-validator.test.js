@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const {
   validateProfileUpdate,
   validateSignup,
+  normalizeIndianMobile,
 } = require("../src/validators/auth.validator");
 const User = require("../src/models/User.model");
 
@@ -43,6 +44,42 @@ test("signup retains compatibility with existing string-address clients", () => 
   );
 });
 
+test("signup allows email-only and mobile-only registration", () => {
+  const { email, mobile, ...requiredFields } = validSignup;
+  assert.deepEqual(
+    validateSignup({
+      ...requiredFields,
+      email,
+      mobile: "",
+      registrationMethod: "email",
+    }),
+    [],
+  );
+  assert.deepEqual(
+    validateSignup({
+      ...requiredFields,
+      email: "",
+      mobile,
+      registrationMethod: "mobile",
+    }),
+    [],
+  );
+});
+
+test("signup rejects invalid mobile identifiers and normalizes +91 numbers", () => {
+  assert.ok(
+    validateSignup({
+      ...validSignup,
+      email: "",
+      mobile: "1234567890",
+      registrationMethod: "mobile",
+    }).some((error) => error.includes("Mobile")),
+  );
+  assert.equal(normalizeIndianMobile("+919876543210"), "9876543210");
+  assert.equal(normalizeIndianMobile("9876543210"), "9876543210");
+  assert.equal(normalizeIndianMobile("+911234567890"), null);
+});
+
 test("profile update accepts both structured and legacy string addresses", () => {
   const profile = { ...validSignup };
   assert.deepEqual(validateProfileUpdate(profile), []);
@@ -66,4 +103,35 @@ test("user schema preserves legacy string and accepts structured addresses", asy
   assert.equal(await oldUser.validate(), undefined);
   assert.equal(await newUser.validate(), undefined);
   assert.deepEqual(newUser.toSafeObject().address, validSignup.address);
+});
+
+test("user schema accepts either login identifier but not neither", async () => {
+  const baseUser = {
+    name: "Test User",
+    pinCode: "462001",
+    password: "hashed-password",
+    address: "12 Main Street",
+  };
+  const emailUser = new User({ ...baseUser, email: "test@example.com" });
+  const mobileUser = new User({ ...baseUser, mobile: "9876543210" });
+  const noIdentifierUser = new User(baseUser);
+
+  assert.equal(await emailUser.validate(), undefined);
+  assert.equal(await mobileUser.validate(), undefined);
+  await assert.rejects(noIdentifierUser.validate(), /email address or mobile number/);
+
+  const identifierIndexes = User.schema
+    .indexes()
+    .filter(([keys]) => keys.email === 1 || keys.mobile === 1);
+  assert.deepEqual(
+    identifierIndexes.map(([keys, options]) => [
+      Object.keys(keys)[0],
+      options.unique,
+      options.partialFilterExpression[Object.keys(keys)[0]].$type,
+    ]),
+    [
+      ["email", true, "string"],
+      ["mobile", true, "string"],
+    ],
+  );
 });

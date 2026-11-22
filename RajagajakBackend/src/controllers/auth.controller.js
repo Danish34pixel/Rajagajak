@@ -6,6 +6,7 @@ const {
   validateProfileUpdate,
   validateResetPassword,
   validateSignup,
+  normalizeIndianMobile,
 } = require("../validators/auth.validator");
 const { loginUser, registerUser } = require("../services/auth.service");
 const passwordResetService = require("../services/password-reset.service");
@@ -27,13 +28,32 @@ const signup = asyncHandler(async (req, res) => {
 });
 
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, mobile, password } = req.body || {};
+  const hasEmail = typeof email === "string" && Boolean(email.trim());
+  const hasMobile = typeof mobile === "string" && Boolean(mobile.trim());
 
-  if (!email || !password) {
-    return errorResponse(res, "Email and password are required.", 400);
+  if (hasEmail === hasMobile || typeof password !== "string" || !password) {
+    return errorResponse(
+      res,
+      "Enter either an email address or mobile number and password.",
+      400,
+    );
   }
 
-  const { user, token } = await loginUser(email, password);
+  const method = hasMobile ? "mobile" : "email";
+  const identifier = hasMobile ? normalizeIndianMobile(mobile) : email.trim();
+  if (hasMobile && !identifier) {
+    return errorResponse(
+      res,
+      "Mobile must be a valid Indian 10-digit number.",
+      400,
+    );
+  }
+  if (hasEmail && !validateEmail(identifier)) {
+    return errorResponse(res, "A valid email address is required.", 400);
+  }
+
+  const { user, token } = await loginUser(identifier, password, method);
   return successResponse(res, { user: user.toSafeObject(), token });
 });
 
@@ -87,8 +107,27 @@ const updateProfile = asyncHandler(async (req, res) => {
   if (!user) return errorResponse(res, "User account not found", 404);
 
   user.name = req.body.name.trim();
-  user.mobile = String(req.body.mobile).trim();
-  user.email = req.body.email.trim().toLowerCase();
+  const requestedMobile = req.body.mobile
+    ? normalizeIndianMobile(String(req.body.mobile))
+    : "";
+  const requestedEmail =
+    typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
+  if (user.mobile && requestedMobile && requestedMobile !== user.mobile) {
+    return errorResponse(
+      res,
+      "Mobile number cannot be changed without verification.",
+      400,
+    );
+  }
+  if (user.email && requestedEmail && requestedEmail !== user.email) {
+    return errorResponse(
+      res,
+      "Email address cannot be changed without verification.",
+      400,
+    );
+  }
+  if (!user.mobile && requestedMobile) user.mobile = requestedMobile;
+  if (!user.email && requestedEmail) user.email = requestedEmail;
   user.address =
     typeof req.body.address === "string"
       ? req.body.address.trim()
@@ -106,7 +145,11 @@ const updateProfile = asyncHandler(async (req, res) => {
     await user.save();
   } catch (error) {
     if (error.code === 11000) {
-      return errorResponse(res, "A user with this email already exists.", 409);
+      return errorResponse(
+        res,
+        "An account with this email or mobile number already exists.",
+        409,
+      );
     }
     throw error;
   }

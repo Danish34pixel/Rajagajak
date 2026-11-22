@@ -7,6 +7,7 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "node --test",
+    "migrate:auth-identifiers": "node src/scripts/migrate-user-auth-identifiers.js",
     "seed:blog": "node src/scripts/seed-blog-articles.js"
   },
   "keywords": [],

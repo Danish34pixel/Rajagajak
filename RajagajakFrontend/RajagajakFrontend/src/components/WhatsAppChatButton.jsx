@@ -10,6 +10,12 @@ const whatsappUrl = `https://wa.me/919244005152?text=${encodeURIComponent(greeti
 export default function WhatsAppChatButton() {
   const { pathname } = useLocation();
   const [footerVisible, setFooterVisible] = useState(false);
+  const isAuthPage = [
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+  ].includes(pathname);
 
   useEffect(() => {
     let frameId;
@@ -33,6 +39,8 @@ export default function WhatsAppChatButton() {
       observer?.disconnect();
     };
   }, [pathname]);
+
+  if (isAuthPage) return null;
 
   return (
     <a

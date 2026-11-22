@@ -23,6 +23,13 @@ const emptyForm = {
   pinCode: "",
 };
 
+const toProfileForm = (user) => ({
+  ...emptyForm,
+  ...user,
+  mobile: user.mobile || "",
+  email: user.email || "",
+});
+
 const formatAddress = (address) => {
   if (typeof address === "string") return address;
   if (!address || typeof address !== "object") return "";
@@ -58,7 +65,7 @@ export default function Profile() {
       .then((response) => {
         if (!active) return;
         setProfile(response.data.user);
-        setForm({ ...emptyForm, ...response.data.user });
+        setForm(toProfileForm(response.data.user));
       })
       .catch((requestError) => {
         if (!active) return;
@@ -103,7 +110,7 @@ export default function Profile() {
       const response = await api.updateProfile(form);
       const nextProfile = response.data.user;
       setProfile(nextProfile);
-      setForm({ ...emptyForm, ...nextProfile });
+      setForm(toProfileForm(nextProfile));
       updateUser(nextProfile);
       setEditing(false);
       setNotice("Profile updated successfully.");
@@ -120,7 +127,7 @@ export default function Profile() {
   };
 
   const cancelEdit = () => {
-    setForm({ ...emptyForm, ...profile });
+    setForm(toProfileForm(profile));
     setEditing(false);
     setError("");
   };
@@ -182,7 +189,11 @@ export default function Profile() {
             {notice && <div className="success-note">{notice}</div>}
             {editing ? (
               <form className="profile-form" onSubmit={save}>
-                <ProfileFields form={form} onChange={updateField} />
+                <ProfileFields
+                  form={form}
+                  profile={profile}
+                  onChange={updateField}
+                />
                 {error && <div className="alert">{error}</div>}
                 <div className="profile-actions">
                   <button
@@ -281,7 +292,7 @@ function ProfileValue({ icon: Icon, label, value }) {
   );
 }
 
-function ProfileFields({ form, onChange }) {
+function ProfileFields({ form, profile, onChange }) {
   return (
     <section className="profile-section">
       <h2>Edit profile</h2>
@@ -297,7 +308,8 @@ function ProfileFields({ form, onChange }) {
             value={form.mobile}
             onChange={onChange}
             inputMode="numeric"
-            required
+            readOnly={Boolean(profile.mobile)}
+            placeholder={profile.mobile ? "" : "Add a 10-digit mobile number"}
           />
         </label>
         <label>
@@ -307,7 +319,8 @@ function ProfileFields({ form, onChange }) {
             type="email"
             value={form.email}
             onChange={onChange}
-            required
+            readOnly={Boolean(profile.email)}
+            placeholder={profile.email ? "" : "Add an email address"}
           />
         </label>
         <label>
@@ -379,6 +392,9 @@ function ProfileFields({ form, onChange }) {
           </>
         )}
       </div>
+      <p className="section-subtitle">
+        Existing email and mobile identifiers cannot be changed here.
+      </p>
     </section>
   );
 }

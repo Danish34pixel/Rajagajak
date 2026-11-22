@@ -1,7 +1,7 @@
 import { joinApiPath, normalizeApiBase } from "../utils/apiUrl.js";
 
 const API_BASE = normalizeApiBase(
-  (import.meta.env.VITE_API_URL || "https://api.rajagajak.tech/0").trim(),
+  (import.meta.env.VITE_API_URL || "https://api.rajagajak.tech/").trim(),
 );
 const API_ROOT = `${API_BASE}/api/v1`;
 const API_COMPAT_ROOT = `${API_BASE}/api`;

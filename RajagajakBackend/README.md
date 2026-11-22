@@ -79,6 +79,27 @@ safe error without account/token/provider details, and clients still receive
 the same generic response to prevent account enumeration. Do not deploy real
 credentials in source control.
 
+## Customer authentication
+
+`POST /api/v1/auth/signup` accepts `registrationMethod: "email"` or
+`"mobile"`; older requests without this field continue to use email
+registration. The selected identifier is required and the other identifier is
+optional. `POST /api/v1/auth/login` accepts either `{ email, password }` or
+`{ mobile, password }`. Indian mobile numbers accept 10 digits or the `+91`
+prefix and are stored as canonical 10-digit national numbers to preserve the
+existing checkout and order format. Login attempts are limited to 10 per IP
+per 15 minutes. Email and mobile identifiers are unique when present; accounts
+are not merged.
+
+Before deploying this schema change, configure the backend `.env` and run
+`npm run migrate:auth-identifiers` once. Run it while customer writes are
+paused: it checks for duplicate identifiers, replaces the old email index,
+and creates partial unique indexes without changing user documents. If
+duplicates exist, it stops without changing data; resolve those records
+manually without merging accounts, then rerun the migration. Keep the existing
+email password-reset flow unchanged; mobile-only customers need to add an
+email in profile settings before using email-based recovery.
+
 Razorpay online checkout fetches the public key from `GET /api/payment/config`
 (also available at `/api/v1/payment/config`) before using
 `POST /api/v1/payment/create-order` and `POST /api/v1/payment/verify` (also

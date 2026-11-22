@@ -11,6 +11,17 @@ const {
 const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many login attempts. Please try again later.",
+    error: null,
+  },
+});
 const passwordResetLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 5,
@@ -35,7 +46,7 @@ const passwordChangeLimiter = rateLimit({
 });
 
 router.post("/signup", signup);
-router.post("/login", login);
+router.post("/login", loginLimiter, login);
 router.post("/forgot-password", passwordResetLimiter, forgotPassword);
 router.post("/reset-password", passwordChangeLimiter, resetPassword);
 router.get("/profile", authenticate, getProfile);

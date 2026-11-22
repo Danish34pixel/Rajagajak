@@ -222,6 +222,49 @@
 .alert--enter {
   animation: alert-in 260ms ease both;
 }
+.auth-method-selector {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid
+    color-mix(in srgb, var(--color-text-secondary) 18%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-white) 48%, transparent);
+}
+.auth-method-selector button {
+  flex: 1;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.auth-method-selector button.is-selected {
+  background: var(--color-primary);
+  color: var(--color-background);
+}
+.auth-method-selector button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.auth-mobile-input-wrap .auth-country-code {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  z-index: 1;
+  color: var(--color-text-secondary);
+  font-weight: 700;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.auth-form .auth-mobile-input-wrap input {
+  padding-left: 62px;
+  padding-right: 14px;
+}
 @keyframes alert-in {
   from {
     opacity: 0;
