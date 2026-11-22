@@ -295,6 +295,88 @@
   font-size: 15px;
 }
 
+.about-contact {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  align-items: center;
+  gap: 30px;
+  margin-top: 28px;
+  padding: clamp(28px, 5vw, 52px);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, white);
+  border-radius: 24px;
+  background:
+    radial-gradient(ellipse at 90% 10%, rgba(247, 201, 72, 0.18), transparent 38%),
+    #fffdf8;
+}
+
+.about-contact-copy h2 {
+  margin: 12px 0;
+  color: var(--color-text);
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(28px, 3.2vw, 40px);
+  line-height: 1.15;
+}
+
+.about-contact-copy p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.about-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.about-contact-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 13px;
+  padding: 16px;
+  border: 1px solid rgba(121, 85, 72, 0.12);
+  border-radius: 16px;
+  color: var(--color-primary-dark);
+  background: var(--color-white);
+  text-decoration: none;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.about-contact-card:hover,
+.about-contact-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-primary) 45%, white);
+  box-shadow: 0 10px 24px rgba(81, 46, 17, 0.08);
+}
+
+.about-contact-card:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.about-contact-card > span {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.about-contact-label {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.about-contact-card strong {
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
 .navbar-about-link:hover {
   color: var(--color-primary);
 }
@@ -371,7 +453,8 @@
 
   .about-story,
   .about-promise,
-  .about-hindi {
+  .about-hindi,
+  .about-contact {
     grid-template-columns: 1fr;
   }
 
@@ -395,6 +478,15 @@
     gap: 20px;
     padding: 28px 22px;
     border-radius: 22px;
+  }
+
+  .about-contact {
+    gap: 20px;
+    padding: 28px 22px;
+  }
+
+  .about-contact-grid {
+    grid-template-columns: 1fr;
   }
 
   .navbar-about-link {

@@ -1,14 +1,23 @@
 import { useEffect } from "react";
 import {
+  ArrowUpRight,
   Cookie,
   Leaf,
+  Mail,
   Nut,
+  Phone,
   Sparkles,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar.jsx";
 import SiteFooter from "../components/SiteFooter.jsx";
 import "./About.css";
+
+const phoneLink = "tel:+919244005152";
+const emailAddress = "rajagajak2006@gmail.com";
+const instagramUrl =
+  "https://www.instagram.com/raja_gajak?jplx=MWEzZDlqN2c0ZnV2ag%3D%3D&utm_source=qr";
+const facebookUrl = "https://www.facebook.com/share/1EBEFKsws8/";
 
 const specialities = [
   {
@@ -270,6 +279,60 @@ export default function About() {
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section className="about-contact" aria-labelledby="about-contact-heading">
+          <div className="about-contact-copy">
+            <span className="eyebrow">Get in touch</span>
+            <h2 id="about-contact-heading">Contact &amp; Follow Us</h2>
+            <p>
+              Questions about our sweets? Call or email us, or follow Raja
+              Gajak on social media.
+            </p>
+          </div>
+          <div className="about-contact-grid">
+            <a className="about-contact-card" href={phoneLink}>
+              <Phone size={20} aria-hidden="true" />
+              <span>
+                <span className="about-contact-label">Call us</span>
+                <strong>+91 92440 05152</strong>
+              </span>
+            </a>
+            <a
+              className="about-contact-card"
+              href={`mailto:${emailAddress}`}
+            >
+              <Mail size={20} aria-hidden="true" />
+              <span>
+                <span className="about-contact-label">Email us</span>
+                <strong>{emailAddress}</strong>
+              </span>
+            </a>
+            <a
+              className="about-contact-card"
+              href={instagramUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ArrowUpRight size={20} aria-hidden="true" />
+              <span>
+                <span className="about-contact-label">Instagram</span>
+                <strong>@raja_gajak</strong>
+              </span>
+            </a>
+            <a
+              className="about-contact-card"
+              href={facebookUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ArrowUpRight size={20} aria-hidden="true" />
+              <span>
+                <span className="about-contact-label">Facebook</span>
+                <strong>Raja Gajak</strong>
+              </span>
+            </a>
           </div>
         </section>
       </main>

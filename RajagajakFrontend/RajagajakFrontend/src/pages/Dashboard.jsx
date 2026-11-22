@@ -40,6 +40,23 @@ const itemVariants = {
 };
 
 const PRODUCTS_PER_PAGE = 10;
+const storefrontSlides = [
+  {
+    id: "storefront-pic1",
+    src: "/pic1.png",
+    alt: "Rajagajak storefront at night",
+  },
+  {
+    id: "storefront-pic2",
+    src: "/pic2.png",
+    alt: "Rajagajak sweets shop exterior",
+  },
+  {
+    id: "storefront-pic3",
+    src: "/pic3.png",
+    alt: "Customers inside the Rajagajak sweets shop",
+  },
+];
 
 export default function Dashboard() {
   const { addToCart } = useCart();
@@ -196,27 +213,35 @@ export default function Dashboard() {
       ).slice(0, 4),
     [products],
   );
-  const featuredProduct = featuredProducts.length
-    ? featuredProducts[featuredIndex % featuredProducts.length]
-    : null;
-  const featuredImage =
-    featuredProduct?.images?.find(Boolean) || featuredProduct?.image;
+  const featuredSlides = useMemo(
+    () => [
+      ...storefrontSlides,
+      ...featuredProducts.map((item) => ({
+        id: String(item._id || item.id || item.title),
+        productId: item._id || item.id,
+        src: item.images?.find(Boolean) || item.image,
+        alt: item.title,
+      })),
+    ],
+    [featuredProducts],
+  );
+  const activeFeaturedIndex = featuredIndex % featuredSlides.length;
+  const featuredSlide = featuredSlides[activeFeaturedIndex];
 
   useEffect(() => {
-    if (featuredProducts.length < 2) return undefined;
+    if (featuredSlides.length < 2) return undefined;
 
     const intervalId = window.setInterval(() => {
-      setFeaturedIndex((current) => (current + 1) % featuredProducts.length);
+      setFeaturedIndex((current) => (current + 1) % featuredSlides.length);
     }, 4500);
 
     return () => window.clearInterval(intervalId);
-  }, [featuredProducts]);
+  }, [featuredSlides]);
 
   const moveFeatured = (direction) => {
     setFeaturedIndex(
       (current) =>
-        (current + direction + featuredProducts.length) %
-        featuredProducts.length,
+        (current + direction + featuredSlides.length) % featuredSlides.length,
     );
   };
 
@@ -244,56 +269,43 @@ export default function Dashboard() {
               <div className="product-skeleton" />
             </div>
           )}
-          {productsError && (
-            <div className="featured-state">
-              <p>We couldn&apos;t load featured products right now.</p>
-              <button className="retry-button" type="button" onClick={loadProducts}>
-                Try again
-              </button>
-            </div>
-          )}
-          {!productsLoading && !productsError && products.length === 0 && (
-            <p className="featured-state">Products will appear here when available.</p>
-          )}
-          {!productsLoading &&
-            !productsError &&
-            products.length > 0 &&
-            !featuredProduct && (
-              <p className="featured-state">
-                Featured product images are not available right now.
-              </p>
-            )}
-          {!productsLoading &&
-            !productsError &&
-            featuredProduct && (
+          {!productsLoading && featuredSlide && (
             <div className="featured-image-carousel">
               <AnimatePresence mode="wait">
                 <motion.div
                   className="featured-image-slide"
-                  key={featuredProduct._id || featuredProduct.id}
+                  key={featuredSlide.id}
                   initial={{ opacity: 0, scale: 1.015 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.45, ease: "easeOut" }}
                 >
-                  <Link
-                    to={`/products/${featuredProduct._id || featuredProduct.id}`}
-                    aria-label={`View ${featuredProduct.title} details`}
-                  >
+                  {featuredSlide.productId ? (
+                    <Link
+                      to={`/products/${featuredSlide.productId}`}
+                      aria-label={`View ${featuredSlide.alt} details`}
+                    >
+                      <img
+                        src={featuredSlide.src}
+                        alt={featuredSlide.alt}
+                        loading="lazy"
+                      />
+                    </Link>
+                  ) : (
                     <img
-                      src={featuredImage}
-                      alt={featuredProduct.title}
+                      src={featuredSlide.src}
+                      alt={featuredSlide.alt}
                       loading="lazy"
                     />
-                  </Link>
+                  )}
                 </motion.div>
               </AnimatePresence>
-              {featuredProducts.length > 1 && (
+              {featuredSlides.length > 1 && (
                 <>
                   <button
                     className="featured-image-control featured-image-previous"
                     type="button"
-                    aria-label="Show previous featured product image"
+                    aria-label="Show previous featured image"
                     onClick={() => moveFeatured(-1)}
                   >
                     <ChevronLeft size={22} />
@@ -301,7 +313,7 @@ export default function Dashboard() {
                   <button
                     className="featured-image-control featured-image-next"
                     type="button"
-                    aria-label="Show next featured product image"
+                    aria-label="Show next featured image"
                     onClick={() => moveFeatured(1)}
                   >
                     <ChevronRight size={22} />
@@ -310,14 +322,14 @@ export default function Dashboard() {
                     className="featured-image-indicators"
                     aria-label="Featured image slides"
                   >
-                    {featuredProducts.map((item, index) => (
+                    {featuredSlides.map((item, index) => (
                       <button
-                        key={item._id || item.id}
+                        key={item.id}
                         type="button"
-                        className={index === featuredIndex ? "active" : ""}
-                        aria-label={`Show featured product image ${index + 1}`}
+                        className={index === activeFeaturedIndex ? "active" : ""}
+                        aria-label={`Show featured image ${index + 1}`}
                         aria-current={
-                          index === featuredIndex ? "true" : undefined
+                          index === activeFeaturedIndex ? "true" : undefined
                         }
                         onClick={() => setFeaturedIndex(index)}
                       />
