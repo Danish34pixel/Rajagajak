@@ -78,6 +78,16 @@ const calculateItems = async (requestedItems) => {
       ),
     });
   });
+  const totalWeightKg = Number(
+    [...merged.values()]
+      .reduce((total, item) => total + item.quantityKg, 0)
+      .toFixed(3),
+  );
+  if (totalWeightKg < 1) {
+    throw new Error(
+      `Minimum combined order weight is 1 kg. Your cart currently weighs ${totalWeightKg} kg.`,
+    );
+  }
   const items = [];
   for (const requested of merged.values()) {
     const product = await Product.findById(requested.productId);

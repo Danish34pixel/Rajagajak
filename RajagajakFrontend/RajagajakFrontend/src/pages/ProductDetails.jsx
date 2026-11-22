@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Share2,
   ShoppingBag,
 } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -13,6 +14,8 @@ import { useCart } from "../context/useCart.js";
 import { useFlyToCart } from "../components/FlyToCart.jsx";
 import * as api from "../services/api.js";
 import { getProductSuggestions } from "../utils/products.js";
+import usePageMetadata from "../utils/usePageMetadata.js";
+import { shareProduct } from "../utils/shareProduct.js";
 import {
   DEFAULT_QUANTITY_KG,
   formatQuantity,
@@ -178,6 +181,25 @@ export default function ProductDetails() {
     () => (product ? getProductSuggestions(catalog, product) : []),
     [catalog, product],
   );
+  usePageMetadata({
+    title: product?.title ? `${product.title} | RAJA GAJAK®` : "Product | RAJA GAJAK®",
+    description: description || "Explore this product from RAJA GAJAK.",
+    image: images[0],
+    canonicalUrl: product ? `${window.location.origin}/products/${product._id || product.id || id}` : undefined,
+  });
+
+  const shareCurrentProduct = async () => {
+    const result = await shareProduct(product, {
+      url: `${window.location.origin}/products/${product._id || product.id || id}`,
+    });
+    if (result.method === "native") {
+      setActionMessage("Product shared successfully.");
+    } else if (result.method === "copied") {
+      setActionMessage("Product link copied to clipboard.");
+    } else if (result.method !== "cancelled") {
+      setActionMessage("Unable to share this product.");
+    }
+  };
 
   const addProduct = (buyNow = false) => {
     const nextQuantity = selectedKg;
@@ -425,6 +447,13 @@ export default function ProductDetails() {
                   onClick={() => addProduct(true)}
                 >
                   Buy it now
+                </button>
+                <button
+                  className="outline-action"
+                  type="button"
+                  onClick={shareCurrentProduct}
+                >
+                  <Share2 size={17} /> Share product
                 </button>
               </div>
               {actionMessage && (

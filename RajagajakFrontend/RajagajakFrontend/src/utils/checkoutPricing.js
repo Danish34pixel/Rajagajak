@@ -11,3 +11,13 @@ export const calculateCheckoutGrandTotal = ({
     Number(shippingCharge || 0);
   return Number(Math.max(0, total).toFixed(2));
 };
+
+export const getCartTotalWeightKg = (cartItems = []) =>
+  Number(
+    (cartItems || [])
+      .reduce((total, item) => total + Number(item.quantityKg || 0), 0)
+      .toFixed(3),
+  );
+
+export const isMinimumCartWeightMet = (cartItems = []) =>
+  getCartTotalWeightKg(cartItems) >= 1;

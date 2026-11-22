@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Share2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -9,10 +9,12 @@ import {
   getSelectableMaxStockKg,
   MIN_QUANTITY_KG,
 } from "../utils/quantity.js";
+import { shareProduct } from "../utils/shareProduct.js";
 
 const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 export default function ProductCard({ item, onAddToCart, variants }) {
+  const [shareMessage, setShareMessage] = useState("");
   const [selectedQuantityKg, setSelectedQuantityKg] = useState(
     DEFAULT_QUANTITY_KG,
   );
@@ -48,6 +50,15 @@ export default function ProductCard({ item, onAddToCart, variants }) {
   const hasDiscount = Number(item.discount || 0) > 0 && mrpPerKg > pricePerKg;
   const selectedPrice = pricePerKg * selectedQuantityKg;
   const selectedMrp = mrpPerKg * selectedQuantityKg;
+
+  const shareCurrentProduct = async () => {
+    const result = await shareProduct(item, {
+      url: `${window.location.origin}/products/${productId}`,
+    });
+    if (result.method === "copied") setShareMessage("Link copied");
+    else if (result.method === "native") setShareMessage("Shared");
+    else if (result.method !== "cancelled") setShareMessage("Could not share");
+  };
 
   return (
     <motion.article
@@ -116,6 +127,18 @@ export default function ProductCard({ item, onAddToCart, variants }) {
         </label>
 
         <div className="product-card-actions">
+          <button
+            type="button"
+            className="outline-action product-share-button"
+            aria-label={`Share ${item.title}`}
+            title={shareMessage || "Share product"}
+            onClick={(event) => {
+              event.stopPropagation();
+              shareCurrentProduct();
+            }}
+          >
+            <Share2 size={14} />
+          </button>
           <Link
             className="secondary-action"
             to={`/products/${productId}`}

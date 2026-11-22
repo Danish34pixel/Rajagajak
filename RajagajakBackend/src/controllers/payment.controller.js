@@ -113,6 +113,7 @@ const paymentOrderError = (error) => {
   const message = String(error?.message || "");
   if (
     message === "Your cart is empty." ||
+    message.startsWith("Minimum combined order weight") ||
     message.startsWith("Invalid order item quantity.") ||
     message === "One of the products is no longer available."
   ) {

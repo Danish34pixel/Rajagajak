@@ -6,7 +6,11 @@ import Navbar from "../components/Navbar.jsx";
 import { useCart } from "../context/useCart.js";
 import { useAuth } from "../context/useAuth.js";
 import * as api from "../services/api.js";
-import { calculateCheckoutGrandTotal } from "../utils/checkoutPricing.js";
+import {
+  calculateCheckoutGrandTotal,
+  getCartTotalWeightKg,
+  isMinimumCartWeightMet,
+} from "../utils/checkoutPricing.js";
 import {
   getCurrentLocation,
   getLocationErrorMessage,
@@ -132,6 +136,8 @@ export default function Checkout() {
   const cartKey = cartItems
     .map((item) => `${item.productId}:${item.quantityKg}`)
     .join("|");
+  const totalCartWeightKg = getCartTotalWeightKg(cartItems);
+  const minimumWeightMet = isMinimumCartWeightMet(cartItems);
   const deliveryQuote =
     deliveryQuoteState?.cartKey === cartKey ? deliveryQuoteState.data : null;
   const deliveryQuotePending =
@@ -508,6 +514,11 @@ export default function Checkout() {
     if (paymentSubmissionLock.current) return;
     setError("");
     if (!cartItems.length) return setError("Your bag is empty.");
+    if (!minimumWeightMet) {
+      return setError(
+        `Minimum combined order weight is 1 kg. Your cart currently weighs ${formatQuantity(totalCartWeightKg)}.`,
+      );
+    }
     if (!user) {
       navigate("/login", {
         state: { from: { pathname: "/checkout" } },
@@ -663,6 +674,12 @@ export default function Checkout() {
         </div>
         {error && <div className="alert">{error}</div>}
         {quoteError && <div className="alert">{quoteError}</div>}
+        {!minimumWeightMet && (
+          <div className="alert">
+            Minimum combined order weight is 1 kg. Your cart currently weighs{" "}
+            {formatQuantity(totalCartWeightKg)}.
+          </div>
+        )}
         <form className="checkout-layout" onSubmit={submit}>
           <section className="checkout-card">
             <h2>Delivery Location</h2>
@@ -1187,6 +1204,7 @@ export default function Checkout() {
               type="submit"
               disabled={
                 submitting ||
+                !minimumWeightMet ||
                 !quote ||
                 !deliveryQuote ||
                 deliveryQuotePending ||

@@ -3564,6 +3564,13 @@ fieldset.checkout-fields {
   flex: 1.2;
 }
 
+.product-share-button {
+  width: 40px;
+  min-height: 40px;
+  flex: 0 0 40px;
+  padding: 0;
+}
+
 .product-detail-bullets {
   min-height: 0;
   margin: 0;
